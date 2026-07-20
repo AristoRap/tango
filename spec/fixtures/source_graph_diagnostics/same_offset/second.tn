@@ -1,0 +1,3 @@
+def second_value : Int32
+  2
+end

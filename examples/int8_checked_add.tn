@@ -1,0 +1,7 @@
+puts 4_i8 + 5_i8
+
+begin
+  puts 127_i8 + 1_i8
+rescue OverflowError
+  puts "overflow"
+end

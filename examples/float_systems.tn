@@ -1,0 +1,63 @@
+x = 0.0
+puts -x
+puts +x
+
+i = 1_i8
+puts -i
+minimum = -128_i8
+begin
+  puts -minimum
+rescue OverflowError
+  puts "integer negate overflow"
+end
+
+nan = 0.0 / 0.0
+infinity = 1.0 / 0.0
+puts nan.nan?
+direction = infinity.infinite?
+puts direction if direction
+puts 1.5.finite?
+
+puts (-3.5).abs
+puts (-0.0).sign_bit
+puts 2.25.abs2
+puts 2.0.integer?
+puts 2.25.integer?
+
+puts 2.25.ceil
+puts 2.75.floor
+puts -2.75.trunc
+puts 2.5.round_even
+puts 2.5.round_away
+puts 0.0.next_float
+puts 0.0.prev_float
+
+puts 2.0 ** 3
+puts 9.0 ** 0.5
+puts 5.5.remainder(2.0)
+
+puts 2_i8 + 0.5
+puts 0.5 + 2_u64
+puts 5_i8 / 2_u16
+puts 5_i8 // 2.0
+puts 5.0 % 2_i8
+
+puts 127.0.to_i8
+puts 255.0.to_u8
+begin
+  puts 128.0.to_i8
+rescue OverflowError
+  puts "float conversion overflow"
+end
+
+puts 2_i8 ** 6_u64
+begin
+  puts 2_i8 ** 7
+rescue OverflowError
+  puts "integer power overflow"
+end
+begin
+  puts 2_i8 ** -1
+rescue ArgumentError
+  puts "negative integer power"
+end

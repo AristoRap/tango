@@ -1,0 +1,21 @@
+count = 0
+done = Channel(Int32).new
+spawn do
+  i = 0
+  while i < 100000
+    count = count + 1
+    i = i + 1
+  end
+  done.send(0)
+end
+spawn do
+  i = 0
+  while i < 100000
+    count = count + 1
+    i = i + 1
+  end
+  done.send(0)
+end
+done.receive
+done.receive
+puts count

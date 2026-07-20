@@ -1,0 +1,43 @@
+class EnsureBoom < Exception
+end
+
+def ensure_risky(n : Int32) : Int32
+  raise EnsureBoom.new("boom") if n < 1
+  n * 10
+end
+
+def clean_ok(n : Int32) : Int32
+  begin
+    ensure_risky(n)
+  rescue
+    -1
+  ensure
+    puts "ensure ok 5"
+  end
+end
+
+def clean_rescued(n : Int32) : Int32
+  begin
+    ensure_risky(n)
+  rescue EnsureBoom
+    -1
+  ensure
+    puts "ensure rescued 0"
+  end
+end
+
+def clean_else(n : Int32) : Int32
+  begin
+    ensure_risky(n)
+  rescue
+    -1
+  else
+    99
+  ensure
+    puts "ensure else 5"
+  end
+end
+
+puts clean_ok(5)
+puts clean_rescued(0)
+puts clean_else(5)

@@ -1,0 +1,7 @@
+puts 4_i16 + 5_i16
+
+begin
+  puts 32_767_i16 + 1_i16
+rescue OverflowError
+  puts "overflow"
+end

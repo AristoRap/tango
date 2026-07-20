@@ -1,0 +1,5 @@
+def describe(value : Nil) : String
+  "absent"
+end
+
+puts describe(nil)

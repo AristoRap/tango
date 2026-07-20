@@ -1,0 +1,6 @@
+ensure ok 5
+50
+ensure rescued 0
+-1
+ensure else 5
+99

@@ -1,0 +1,51 @@
+maybe = Channel(Int32?).new(1)
+maybe.send(nil)
+maybe.close
+
+puts maybe.next.is_a?(Nil)
+puts maybe.next.is_a?(Iterator::Stop)
+
+numbers = Channel(Int32).new(2)
+numbers.send(1)
+numbers.send(2)
+numbers.close
+
+mapped = numbers.map { |value| value + 10 }
+first_number = numbers.next
+if first_number.is_a?(Int32)
+  puts first_number
+end
+mapped_number = mapped.next
+if mapped_number.is_a?(Int32)
+  puts mapped_number
+end
+puts mapped.next.is_a?(Iterator::Stop)
+
+flags = Channel(Int32).new(1)
+flags.send(1)
+flags.close
+mapped_flags = flags.map { |value| value > 0 }
+flag = mapped_flags.next
+if flag.is_a?(Bool)
+  puts flag
+end
+
+selected_source = Channel(Int32).new(2)
+selected_source.send(1)
+selected_source.send(2)
+selected_source.close
+selected = selected_source.select { |value| value == 2 }
+selected_number = selected.next
+if selected_number.is_a?(Int32)
+  puts selected_number
+end
+
+rejected_source = Channel(Int32).new(2)
+rejected_source.send(1)
+rejected_source.send(2)
+rejected_source.close
+rejected = rejected_source.reject { |value| value == 1 }
+rejected_number = rejected.next
+if rejected_number.is_a?(Int32)
+  puts rejected_number
+end

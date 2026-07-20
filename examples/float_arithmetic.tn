@@ -1,0 +1,11 @@
+puts 1.5 + 2.25
+puts 7.5 - 0.25
+puts 1.5 * 4.0
+puts 7.0 / 2.0
+puts 0.1 + 0.2
+puts 15.0
+puts 1.0e15 * 10.0
+puts 1.0e-5
+puts 1.0 / 0.0
+puts -1.0 / 0.0
+puts 0.0 / 0.0

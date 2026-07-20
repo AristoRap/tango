@@ -1,0 +1,4 @@
+require "./support/require_main/math"
+
+puts add(2, 3)
+puts Counter.new(7).value

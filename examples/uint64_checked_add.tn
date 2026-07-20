@@ -1,0 +1,7 @@
+puts 4_u64 + 5_u64
+
+begin
+  puts 18_446_744_073_709_551_615_u64 + 1_u64
+rescue OverflowError
+  puts "overflow"
+end

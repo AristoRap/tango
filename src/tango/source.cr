@@ -1,0 +1,5 @@
+require "./source/range"
+require "./source/edit"
+require "./source/line_index"
+require "./source/file"
+require "./source/compilation_unit"

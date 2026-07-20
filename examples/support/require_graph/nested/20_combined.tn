@@ -1,0 +1,5 @@
+require "../00_math"
+
+def combined(point : Point) : Int32
+  scale(point.sum)
+end

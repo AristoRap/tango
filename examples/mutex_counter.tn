@@ -1,0 +1,18 @@
+mutex = Mutex.new
+count = 0
+done = Channel(Int32).new
+spawn do
+  mutex.lock
+  count = count + 1
+  mutex.unlock
+  done.send(0)
+end
+spawn do
+  mutex.lock
+  count = count + 1
+  mutex.unlock
+  done.send(0)
+end
+done.receive
+done.receive
+puts count

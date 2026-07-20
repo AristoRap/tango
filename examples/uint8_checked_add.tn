@@ -1,0 +1,7 @@
+puts 4_u8 + 5_u8
+
+begin
+  puts 255_u8 + 1_u8
+rescue OverflowError
+  puts "overflow"
+end

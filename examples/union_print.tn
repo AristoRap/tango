@@ -1,0 +1,10 @@
+def choose(number : Bool) : Int32 | String
+  if number
+    7
+  else
+    "seven"
+  end
+end
+
+puts choose(true)
+puts choose(false)

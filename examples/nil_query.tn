@@ -1,0 +1,20 @@
+def maybe(hit : Bool) : Int32?
+  if hit
+    5
+  else
+    nil
+  end
+end
+
+present = maybe(true)
+absent = maybe(false)
+
+if absent.nil?
+  puts 1
+end
+
+if !present.nil?
+  puts 2
+end
+
+puts present.nil?

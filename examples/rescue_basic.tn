@@ -1,0 +1,10 @@
+def risky(n : Int32) : Int32
+  raise "boom" if n < 0
+  n
+end
+
+begin
+  puts risky(-1)
+rescue ex
+  puts ex.message
+end

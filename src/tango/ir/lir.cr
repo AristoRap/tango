@@ -1,0 +1,7 @@
+require "./lir/rescue_clause"
+require "./lir/value"
+require "./lir/numeric_value"
+require "./lir/stmt"
+require "./lir/program"
+require "./lir/walk"
+require "./lir/validation"

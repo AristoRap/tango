@@ -1,0 +1,5 @@
+require "../shared"
+
+def middle_value : Int32
+  shared_value
+end

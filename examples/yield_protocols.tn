@@ -1,0 +1,12 @@
+3.times { |i| puts i }
+(1..3).each { |i| puts i }
+
+mutex = Mutex.new
+begin
+  mutex.synchronize do
+    raise "boom"
+  end
+rescue
+  puts 7
+end
+mutex.synchronize { puts 8 }

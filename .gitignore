@@ -1,0 +1,10 @@
+/docs/
+/lib/
+/bin/
+/.shards/
+*.dwarf
+.crystal/
+.crystal-cache/
+.tango/
+probes
+__pycache__

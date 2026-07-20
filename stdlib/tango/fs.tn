@@ -1,0 +1,44 @@
+# Filesystem access is an explicitly required standard package, not implicit
+# core surface. The internal leaf repairs Go's multi-result read shape at the
+# target boundary; the public signature and ownership remain Tango declarations.
+@[TangoInternal]
+@[Primitive(:tango_external)]
+@[Go("tangoFileRead")]
+def __tango_file_read(path : String) : String
+end
+
+# Streaming iteration is a distinct semantic surface from File.read followed by
+# String#split: failures can occur after earlier lines have been yielded. Keep
+# that timing explicit instead of teaching an optimizer to silently exchange
+# eager and streaming I/O.
+@[TangoInternal]
+@[Primitive(:tango_external)]
+@[Go("tangoFileEachLine")]
+def __tango_file_each_line(path : String, block : String -> Nil) : Nil
+end
+
+class IO
+  class Error < Exception
+  end
+end
+
+class File
+  class Error < IO::Error
+  end
+
+  class NotFoundError < Error
+  end
+
+  class AccessDeniedError < Error
+  end
+
+  def self.read(path : String) : String
+    __tango_file_read(path)
+  end
+
+  # Yields each line without its LF or CRLF terminator. The target leaf reads
+  # incrementally and does not impose bufio.Scanner's token-size ceiling.
+  def self.each_line(path : String, &block : String -> Nil) : Nil
+    __tango_file_each_line(path, block)
+  end
+end

@@ -1,0 +1,12 @@
+def maybe(hit : Bool) : Int32?
+  if hit
+    5
+  else
+    nil
+  end
+end
+
+x = maybe(true)
+if x
+  puts x
+end

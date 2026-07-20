@@ -1,0 +1,5 @@
+require "./support/require_graph/**"
+
+point = Point.new(2, 3)
+puts combined(point)
+puts point.x

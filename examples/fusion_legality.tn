@@ -1,0 +1,22 @@
+def first(values : Array(Int32))
+  values[0]
+end
+
+values = [1, 2, 3, 4]
+seen = 0
+
+mapped = values.map do |value|
+  seen = seen + 1
+  raise "negative" if value < 0
+  value * 2
+end
+
+filtered = mapped.select do |value|
+  next false if value < 0
+  value > 4
+end
+
+puts filtered.reduce(0) { |sum, value| sum + value }
+puts first(mapped)
+puts seen
+puts values.map { |value| value + 1 }.select { |value| value > 3 }.reduce(0) { |sum, value| sum + value }

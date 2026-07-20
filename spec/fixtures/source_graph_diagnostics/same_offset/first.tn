@@ -1,0 +1,3 @@
+def first_value : Int32
+  1
+end

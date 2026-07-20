@@ -1,0 +1,28 @@
+class BaseError < Exception
+end
+
+class SubError < BaseError
+end
+
+begin
+  raise SubError.new("sub")
+rescue ex : BaseError
+  ex.message
+  puts "parent clause: sub"
+end
+
+begin
+  raise SubError.new("first wins")
+rescue SubError
+  puts "sub clause: first wins"
+rescue BaseError
+  puts "wrong clause"
+end
+
+begin
+  raise BaseError.new("base only")
+rescue SubError
+  puts "wrong clause"
+rescue BaseError
+  puts "base clause: base only"
+end

@@ -1,0 +1,61 @@
+require "tango/fs"
+
+class StationStats
+  getter count : Int32
+  getter sum : Float64
+  getter minimum : Float64
+  getter maximum : Float64
+
+  def initialize(measurement : Float64)
+    @count = 1
+    @sum = measurement
+    @minimum = measurement
+    @maximum = measurement
+  end
+
+  def add(measurement : Float64)
+    @count = @count + 1
+    @sum = @sum + measurement
+    @minimum = measurement if measurement < @minimum
+    @maximum = measurement if measurement > @maximum
+    nil
+  end
+end
+
+def weather_report(path : String, emit : Bool) : Int32
+  stations = {} of String => StationStats
+  station_names = [] of String
+
+  File.read(path).split("\n").each do |line|
+    next if line == ""
+
+    fields = line.split(";")
+    raise ArgumentError.new("Malformed weather record") unless fields.size == 2
+    station = fields[0]
+    measurement = fields[1].to_f
+
+    if stations.has_key?(station)
+      stations[station].add(measurement)
+    else
+      stations[station] = StationStats.new(measurement)
+      station_names << station
+    end
+  end
+
+  raise ArgumentError.new("No weather records") if station_names.empty?
+
+  report_count = 0_i32
+  station_names.sort.each do |station|
+    stats = stations[station]
+    mean = ((stats.sum / stats.count.to_f) * 10.0).round / 10.0
+    line = "#{station}=#{stats.minimum}/#{mean}/#{stats.maximum}"
+    puts line if emit
+    report_count += 1_i32
+  end
+  report_count
+end
+
+weather_report("examples/data/weather_measurements.txt", true)
+
+st = StationStats.new(10)
+puts st.sum

@@ -1,0 +1,6 @@
+def twice(&block : Int32 -> Int32) : Int32
+  block.call(block.call(1))
+end
+
+captured = 10
+puts twice { |n| n + captured }

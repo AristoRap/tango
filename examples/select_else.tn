@@ -1,0 +1,15 @@
+empty = Channel(Int32).new
+select
+when v = empty.receive
+  puts v
+else
+  puts 0
+end
+ready = Channel(Int32).new(1)
+ready.send(7)
+select
+when v = ready.receive
+  puts v
+else
+  puts 0
+end

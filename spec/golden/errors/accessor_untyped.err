@@ -1,0 +1,5 @@
+error: tango accessors require a type declaration (`getter x : T`)
+ --> spec/golden/errors/accessor_untyped.tn:1:7
+  |
+1 | class Settings
+  |       ^

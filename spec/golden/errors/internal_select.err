@@ -1,0 +1,10 @@
+error: select is tango-internal expansion plumbing — not callable from user code
+ --> spec/golden/errors/internal_select.tn:5:20
+  |
+5 | idx, val = Channel.select({ch.receive_select_action})
+  |                    ^^^^^^
+error: receive_select_action is tango-internal expansion plumbing — not callable from user code
+ --> spec/golden/errors/internal_select.tn:5:31
+  |
+5 | idx, val = Channel.select({ch.receive_select_action})
+  |                               ^^^^^^^^^^^^^^^^^^^^^

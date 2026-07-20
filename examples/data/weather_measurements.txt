@@ -1,0 +1,4 @@
+Berlin;-3.0
+Amsterdam;12.5
+Amsterdam;7.5
+Amsterdam;15.0

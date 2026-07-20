@@ -1,0 +1,11 @@
+x = 5
+
+unless x < 2
+  puts 1
+end
+
+unless x < 2
+  puts 2
+else
+  puts 3
+end

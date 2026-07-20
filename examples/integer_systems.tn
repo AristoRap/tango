@@ -1,0 +1,42 @@
+puts 127_i8 &+ 1_i8
+puts 0_u8 &- 1_u8
+puts 20_i16 &* 4_i16
+puts 0b1100_u16 & 0b1010_u16
+puts 0b1100_u32 | 0b0011_u32
+puts 0b1100_i64 ^ 0b1010_i64
+puts ~1_i32
+puts 1_i8 << 7
+puts -8_i16 >> 2
+puts 8_u64 << -1
+puts 1_u32 << 40
+
+puts 255_u16.to_u8
+puts 256_u16.to_u8!
+puts -1_i16.to_u8!
+
+begin
+  puts 256_u16.to_u8
+rescue OverflowError
+  puts "conversion overflow"
+end
+
+puts "127".to_i8
+puts "ff".to_u8(16)
+puts " 42 ".to_i
+puts "12_345".to_i32(10, true, true)
+puts "0x2a".to_i32(10, true, false, true)
+puts "99 red balloons".to_i32(10, true, false, false, false)
+puts "0755".to_i32(10, true, false, false, true, true)
+puts " 7 ".to_i32?(10, false).nil?
+puts "bad".to_i32?.nil?
+puts "256".to_u8?.nil?
+puts "☃"[0].ord
+
+puts 1_i8 < 2_i8
+puts 2_u64 >= 2_u64
+
+begin
+  puts 1_i32 << -2_147_483_648
+rescue OverflowError
+  puts "shift overflow"
+end

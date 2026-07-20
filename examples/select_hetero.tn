@@ -1,0 +1,9 @@
+nums = Channel(Int32).new
+words = Channel(String).new
+spawn { words.send("hi") }
+select
+when n = nums.receive
+  puts n
+when s = words.receive
+  puts s
+end

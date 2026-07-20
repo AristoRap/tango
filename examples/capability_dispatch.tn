@@ -1,0 +1,17 @@
+def sum(values : Enumerable(Int32)) : Int32
+  total = 0
+  values.each do |value|
+    total = total + value
+  end
+  total
+end
+
+array = Array(Int32).new
+array << 1
+array << 2
+array << 3
+
+puts sum(array)
+puts sum(1..4)
+puts "".empty?
+puts "tango".empty?

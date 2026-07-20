@@ -1,0 +1,8 @@
+class MyError < Exception
+end
+
+begin
+  raise MyError.new("typed boom")
+rescue ex : MyError
+  puts ex.message
+end

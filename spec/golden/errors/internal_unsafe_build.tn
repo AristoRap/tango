@@ -1,0 +1,2 @@
+xs = Array(Int32).unsafe_build(3)
+puts xs.size

@@ -1,0 +1,4 @@
+require "./shared"
+require "./shared.tn"
+
+puts shared_value

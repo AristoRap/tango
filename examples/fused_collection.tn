@@ -1,0 +1,2 @@
+values = [1, 2, 3, 4, 5, 6]
+puts values.select { |value| value > 2 }.map { |value| value }.reduce(0) { |sum, value| sum + value }

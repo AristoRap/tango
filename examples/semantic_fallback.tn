@@ -1,0 +1,10 @@
+values = [1, 2, 3, 4]
+
+total = 0
+values.each do |value|
+  total = total + value
+end
+puts total
+
+puts values.map { |value| value * 2 }.select { |value| value > 4 }.reduce(0) { |sum, value| sum + value }
+puts values.reject { |value| value > 2 }.reduce(0) { |sum, value| sum + value }

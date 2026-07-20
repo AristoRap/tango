@@ -1,0 +1,18 @@
+def choose(number : Bool) : Int32 | String
+  if number
+    7
+  else
+    "seven"
+  end
+end
+
+def widen(number : Bool, absent : Bool) : Int32 | String | Nil
+  if absent
+    nil
+  else
+    choose(number)
+  end
+end
+
+puts widen(true, false).as(Int32)
+puts widen(false, false).as(String)

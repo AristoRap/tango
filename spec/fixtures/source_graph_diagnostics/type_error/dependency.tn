@@ -1,0 +1,3 @@
+def broken(value : String) : Int32
+  value + 1
+end

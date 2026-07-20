@@ -1,0 +1,13 @@
+def three_times(& : Int32 ->) : Nil
+  yield 0
+  yield 1
+  yield 2
+end
+
+three_times { |i| puts i }
+
+def apply(x : Int32, & : Int32 -> Int32) : Int32
+  yield x
+end
+
+puts apply(20) { |v| v * 2 + 2 }

@@ -1,0 +1,7 @@
+words = "  tango\tkeeps\n words \u{00a0} tidy  ".split
+puts words.size
+puts words.first
+puts words.last
+
+empty = " \t\n ".split
+puts empty.size

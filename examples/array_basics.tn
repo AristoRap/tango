@@ -1,0 +1,18 @@
+xs = [10, 20, 30]
+puts xs.size
+puts xs.first
+puts xs.last
+xs[1] = 25
+puts xs[1]
+xs << 40
+puts xs.size
+ys = xs
+ys << 50
+puts xs.size
+puts xs[4]
+empty = [] of Int32
+puts empty.size
+nested = [[1, 2], [3]]
+puts nested.size
+puts nested.first.size
+puts nested.first.last

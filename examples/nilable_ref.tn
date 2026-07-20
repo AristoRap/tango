@@ -1,0 +1,18 @@
+class Point
+  def initialize(x : Int32)
+    @x = x
+  end
+
+  def x : Int32
+    @x
+  end
+end
+
+def find(hit : Bool) : Point?
+  hit ? Point.new(7) : nil
+end
+
+p = find(true)
+if p
+  puts p.x
+end

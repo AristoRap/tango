@@ -1,0 +1,8 @@
+require "./ir/type"
+require "./ir/capability"
+require "./ir/numeric"
+require "./ir/stringification"
+require "./ir/carrier_conversion"
+require "./ir/uncaught_exception"
+require "./ir/nir"
+require "./ir/lir"

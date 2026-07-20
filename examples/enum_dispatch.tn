@@ -1,0 +1,22 @@
+enum State
+  Idle
+  Running
+  Done
+end
+
+def label(state : State) : String
+  result = ""
+  case state
+  in State::Idle
+    result = "idle"
+  in State::Running
+    result = "running"
+  in State::Done
+    result = "done"
+  end
+  result
+end
+
+puts label(State::Idle)
+puts label(State::Running)
+puts label(State::Done)

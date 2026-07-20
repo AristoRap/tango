@@ -1,0 +1,5 @@
+require "./second"
+
+def first_value : Int32
+  second_value
+end

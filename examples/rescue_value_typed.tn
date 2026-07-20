@@ -1,0 +1,59 @@
+class Boom < Exception
+end
+
+class Fizz < Exception
+end
+
+def code(e : Boom) : Int32
+  e.message
+  7
+end
+
+def risky(n : Int32) : Int32
+  raise Boom.new("boom") if n < 1
+  raise Fizz.new("fizz") if n < 2
+  n * 10
+end
+
+def name_of(n : Int32) : String
+  raise Boom.new("boom") if n < 1
+  raise Fizz.new("fizz") if n < 2
+  "n5"
+end
+
+def guarded(n : Int32) : Int32
+  begin
+    risky(n)
+  rescue ex : Boom
+    code(ex)
+  end
+end
+
+def classify(n : Int32) : String
+  begin
+    name_of(n)
+  rescue Boom
+    "caught-boom"
+  rescue Fizz
+    "caught-fizz"
+  end
+end
+
+def safe(n : Int32) : String
+  begin
+    name_of(n)
+  rescue Boom
+    "boom"
+  rescue
+    "other"
+  end
+end
+
+puts guarded(0)
+puts guarded(3)
+puts classify(0)
+puts classify(1)
+puts classify(5)
+puts safe(0)
+puts safe(1)
+puts safe(5)

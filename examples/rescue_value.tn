@@ -1,0 +1,27 @@
+def guarded(n : Int32) : Int32
+  value = begin
+    raise "boom" if n < 0
+    n
+  rescue
+    7
+  end
+  value
+end
+
+puts guarded(-1)
+puts guarded(3)
+
+maybe = begin
+  raise "nilable"
+  5
+rescue
+  nil
+end
+if maybe
+  puts "body value"
+else
+  puts "rescued nil"
+end
+
+suffix = ("fine" rescue "never")
+puts suffix

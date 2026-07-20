@@ -1,0 +1,4 @@
+require "./left"
+require "./right"
+
+puts left_value + right_value

@@ -1,0 +1,9 @@
+jobs = Channel(Int32).new(1)
+replies = Channel(Int32).new
+select
+when jobs.send(42)
+  puts 1
+when r = replies.receive
+  puts r
+end
+puts jobs.receive

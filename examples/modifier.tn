@@ -1,0 +1,6 @@
+x = 5
+
+puts x if x < 10
+puts x unless x < 10
+puts 0 if x < 2
+puts 9 unless x < 2

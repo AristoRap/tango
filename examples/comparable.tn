@@ -1,0 +1,54 @@
+def before_or_equal(left : Comparable(T), right : T) : Bool forall T
+  left <= right
+end
+
+struct Score
+  include Comparable(Score)
+
+  def initialize(@value : Int32)
+  end
+
+  def value : Int32
+    @value
+  end
+
+  def <=>(other : Score) : Int32
+    @value <=> other.value
+  end
+end
+
+class UnorderedReference
+  include Comparable(UnorderedReference)
+
+  def initialize(@ordered : Bool)
+  end
+
+  def <=>(other : UnorderedReference) : Int32?
+    @ordered ? 0 : nil
+  end
+end
+
+puts before_or_equal(3, 4)
+puts before_or_equal("alpha", "beta")
+puts before_or_equal(2.0, 1.0)
+puts before_or_equal(Score.new(2), Score.new(3))
+puts(3 <=> 4)
+puts("beta" <=> "alpha")
+puts "alpha" < "beta"
+puts "beta" >= "alpha"
+
+low_score = Score.new(2)
+high_score = Score.new(3)
+puts low_score < high_score
+puts low_score <= high_score
+puts high_score > low_score
+puts high_score >= low_score
+puts low_score == Score.new(2)
+
+same_reference = UnorderedReference.new(false)
+puts same_reference == same_reference
+puts same_reference == UnorderedReference.new(false)
+
+not_a_number = 0.0 / 0.0
+puts((not_a_number <=> 1.0).is_a?(Nil))
+puts before_or_equal(not_a_number, 1.0)

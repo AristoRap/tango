@@ -1,0 +1,15 @@
+class Settings
+  getter name : String = "tango"
+  setter threshold : Int32 = 1
+  property count : Int32 = 2
+end
+
+settings = Settings.new
+puts settings.name
+puts(settings.threshold = 3)
+puts settings.count
+settings.count = 4
+puts settings.count
+sleep 0
+sleep 0.001
+puts "slept"

@@ -1,0 +1,6 @@
+class Counter
+  getter value : Int32
+
+  def initialize(@value : Int32)
+  end
+end

@@ -1,0 +1,6 @@
+ch = Channel(Int32).new
+spawn do
+  ch.send(1)
+end
+idx, val = Channel.select({ch.receive_select_action})
+puts idx

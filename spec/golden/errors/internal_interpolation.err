@@ -1,0 +1,5 @@
+error: interpolation is tango-internal expansion plumbing — not callable from user code
+ --> spec/golden/errors/internal_interpolation.tn:1:13
+  |
+1 | puts String.interpolation("left", "right")
+  |             ^^^^^^^^^^^^^

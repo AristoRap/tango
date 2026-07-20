@@ -1,0 +1,11 @@
+class Point
+  getter x : Int32
+  getter y : Int32
+
+  def initialize(@x : Int32, @y : Int32)
+  end
+
+  def sum : Int32
+    @x + @y
+  end
+end

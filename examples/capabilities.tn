@@ -1,0 +1,11 @@
+values = Array(Int32).new
+puts values.empty?
+values << 1
+puts values.empty?
+
+scores = Hash(String, Int32).new
+puts scores.empty?
+scores["tango"] = 1
+puts scores.empty?
+
+puts (1..4).select { |n| n > 2 }.map { |n| n * 2 }.sum

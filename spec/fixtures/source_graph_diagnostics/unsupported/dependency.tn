@@ -1,0 +1,9 @@
+def broken : Int32
+  value = if true
+    puts 1
+    2
+  else
+    3
+  end
+  value
+end

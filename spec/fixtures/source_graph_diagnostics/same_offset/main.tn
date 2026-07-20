@@ -1,0 +1,4 @@
+require "./first"
+require "./second"
+
+puts first_value + second_value

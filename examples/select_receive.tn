@@ -1,0 +1,9 @@
+ch = Channel(Int32).new
+done = Channel(Int32).new
+spawn { ch.send(42) }
+select
+when x = ch.receive
+  puts x
+when done.receive
+  puts 0
+end

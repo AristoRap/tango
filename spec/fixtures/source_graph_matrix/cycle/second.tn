@@ -1,0 +1,5 @@
+require "./first.tn"
+
+def second_value : Int32
+  9
+end

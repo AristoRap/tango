@@ -1,0 +1,104 @@
+class Token
+  @value : Int32
+
+  def initialize(@value : Int32)
+  end
+
+  def value : Int32
+    @value
+  end
+end
+
+class Tag
+end
+
+struct Pair
+  @left : Int32
+  @right : Int32
+
+  def initialize(@left : Int32, @right : Int32)
+  end
+end
+
+def choose(token : Bool) : Token | String
+  if token
+    Token.new(7)
+  else
+    "seven"
+  end
+end
+
+def choose_key(number : Bool) : Int32 | String
+  if number
+    9
+  else
+    "nine"
+  end
+end
+
+h = Hash(String, Int32).new
+h["b"] = 2
+h["a"] = 1
+h["b"] = 3
+puts h.size
+puts h["a"]
+puts h.fetch("missing", 42)
+puts h.has_key?("b")
+puts h.has_key?("missing")
+h.each do |key, value|
+  puts key
+  puts value
+end
+
+begin
+  h["missing"]
+rescue KeyError
+  puts "missing key"
+end
+
+case h["a"]
+when 1
+  puts "one"
+else
+  puts "other"
+end
+
+value = choose(true)
+puts value.is_a?(Token)
+case value
+when Token
+  puts value.value
+else
+  puts value
+end
+puts value.as(Token).value
+
+begin
+  choose(false).as(Token)
+rescue TypeCastError
+  puts "bad cast"
+end
+
+token = Token.new(7)
+same = token
+other = Token.new(7)
+puts token == same
+puts token != other
+puts token === same
+tag = Tag.new
+puts tag == tag
+puts tag == Tag.new
+puts Pair.new(1, 2) == Pair.new(1, 2)
+puts Pair.new(1, 2) != Pair.new(2, 1)
+puts Pair.new(1, 2) === Pair.new(1, 2)
+puts 7 != 8
+
+pairs = Hash(Pair, String).new
+pair = Pair.new(4, 5)
+pairs[pair] = "pair"
+puts pairs[pair]
+
+union_keys = Hash(Int32 | String, String).new
+union_key = choose_key(true)
+union_keys[union_key] = "union"
+puts union_keys[union_key]

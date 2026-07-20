@@ -1,0 +1,43 @@
+def maybe_channel(ch : Channel(Int32), enabled : Bool) : Channel(Int32)?
+  if enabled
+    ch
+  else
+    nil
+  end
+end
+
+values = Channel(Int32).new(1)
+values.send(7)
+received = values.receive?
+if received
+  puts received
+end
+values.close
+missing = values.receive?
+if missing
+  puts missing
+else
+  puts 0
+end
+
+selected = Channel(Int32).new(1)
+selected.send(9)
+select
+when item = selected.receive?
+  if item
+    puts item
+  end
+end
+
+ignored = Channel(Int32).new(1)
+ignored.send(1)
+select
+when unread = ignored.receive
+  puts 2
+end
+
+maybe = maybe_channel(Channel(Int32).new(1), true)
+if maybe
+  maybe.send(3)
+  puts maybe.receive
+end

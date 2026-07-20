@@ -1,0 +1,3 @@
+def zeta_value : Int32
+  2
+end

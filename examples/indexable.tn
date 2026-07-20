@@ -1,0 +1,23 @@
+struct Buffer
+  include MutableIndexable(Int32)
+
+  def initialize(@values : Array(Int32))
+  end
+
+  def size : Int32
+    @values.size
+  end
+
+  def unsafe_fetch(index : Int32) : Int32
+    @values[index]
+  end
+
+  def unsafe_put(index : Int32, value : Int32) : Int32
+    @values[index] = value
+  end
+end
+
+values = Buffer.new([10, 20, 30])
+puts values[-1]
+values[-2] = 7
+puts values.reduce(0) { |sum, value| sum + value }

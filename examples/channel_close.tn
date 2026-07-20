@@ -1,0 +1,11 @@
+class Signal
+end
+
+ch = Channel(Signal).new(1)
+ch.close
+got = ch.receive?
+if got
+  puts 1
+else
+  puts 0
+end

@@ -1,0 +1,5 @@
+error: receive_select_action is tango-internal expansion plumbing — not callable from user code
+ --> spec/golden/errors/internal_action.tn:2:13
+  |
+2 | action = ch.receive_select_action
+  |             ^^^^^^^^^^^^^^^^^^^^^

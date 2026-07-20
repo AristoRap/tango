@@ -1,0 +1,7 @@
+require "./dump/source_graph_header"
+require "./dump/source_locations"
+require "./dump/nir"
+require "./dump/facts"
+require "./dump/plans"
+require "./dump/lir"
+require "./dump/lower_trace"

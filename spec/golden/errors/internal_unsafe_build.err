@@ -1,0 +1,5 @@
+error: unsafe_build is tango-internal expansion plumbing — not callable from user code
+ --> spec/golden/errors/internal_unsafe_build.tn:1:19
+  |
+1 | xs = Array(Int32).unsafe_build(3)
+  |                   ^^^^^^^^^^^^

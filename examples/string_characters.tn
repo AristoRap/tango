@@ -1,0 +1,15 @@
+text = "Aé🙂"
+puts text.size
+puts text[0]
+puts text[1]
+puts text[-1]
+text.each_char { |char| puts char }
+text.each_char do |char|
+  puts char
+  break
+end
+begin
+  text[3]
+rescue IndexError
+  puts "out of bounds"
+end

@@ -1,0 +1,40 @@
+def pick(n : Int32) : Int32
+  value = begin
+    raise "pick" if n < 1
+    n
+  rescue
+    return 7
+  end
+  value + 100
+end
+
+puts pick(0)
+puts pick(5)
+
+i = 0
+while i < 5
+  value = begin
+    raise "loop" if 2 < i
+    i
+  rescue
+    break
+  end
+  puts value
+  i = i + 1
+end
+puts i
+
+def nested_pick(n : Int32) : Int32
+  begin
+    begin
+      raise "nested" if n < 1
+      n
+    rescue
+      return 9
+    end
+  ensure
+    puts "nested ensure"
+  end
+end
+
+puts nested_pick(0)
