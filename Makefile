@@ -2,7 +2,8 @@ LLVM_CONFIG ?= $(shell command -v llvm-config 2>/dev/null || command -v /opt/hom
 CRYSTAL_CACHE_DIR ?= $(CURDIR)/.crystal-cache
 CRYSTAL_PATH ?= $(shell crystal env CRYSTAL_PATH)
 
-CRYSTAL_ENV = LLVM_CONFIG=$(LLVM_CONFIG) CRYSTAL_CACHE_DIR=$(CRYSTAL_CACHE_DIR) CRYSTAL_PATH=$(CRYSTAL_PATH)
+LLVM_CONFIG_ENV = $(if $(strip $(LLVM_CONFIG)),LLVM_CONFIG=$(LLVM_CONFIG))
+CRYSTAL_ENV = $(LLVM_CONFIG_ENV) CRYSTAL_CACHE_DIR=$(CRYSTAL_CACHE_DIR) CRYSTAL_PATH=$(CRYSTAL_PATH)
 CHANGED_CRYSTAL_SOURCES = $(shell git diff --name-only --diff-filter=ACMR -- '*.cr' | sort)
 UNTRACKED_CRYSTAL_SOURCES = $(shell git ls-files --others --exclude-standard -- '*.cr' | sort)
 CRYSTAL_SOURCES = $(sort $(CHANGED_CRYSTAL_SOURCES) $(UNTRACKED_CRYSTAL_SOURCES))

@@ -28,6 +28,11 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: false
 
+      - name: Install LLVM
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-dev
+
       - name: Verify release version
         run: |
           [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
@@ -66,6 +71,12 @@ jobs:
       - uses: crystal-lang/install-crystal@v1
         with:
           crystal: ${{ env.CRYSTAL_VERSION }}
+
+      - name: Install LLVM
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y llvm-dev
 
       - name: Build release binary
         run: make build-release
