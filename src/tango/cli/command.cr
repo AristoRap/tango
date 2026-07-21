@@ -389,7 +389,6 @@ module Tango
       private def compilation_profile(release : Bool) : Compiler::CompilationProfile
         release ? Compiler::CompilationProfile::Release : Compiler::CompilationProfile::Development
       end
-
     end
   end
 end
