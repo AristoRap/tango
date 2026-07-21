@@ -20,6 +20,23 @@ describe Tango::Source::File do
     file.stable_path?.should be_true
   end
 
+  it "uses canonical source identity for distinct and aliased paths" do
+    path = File.join("spec", "source_spec.cr")
+    absolute = File.expand_path(path)
+
+    Tango::Source::File.canonical_identity(path).should eq(Tango::Source::File.canonical_identity(absolute))
+    Tango::Source::File.canonical_identity("missing/../future.tn").should eq(File.expand_path("future.tn"))
+  end
+
+  it "keeps generated workspaces and default outputs distinct for same-named paths" do
+    left = File.join("left", "main.tn")
+    right = File.join("right", "main.tn")
+
+    Tango::Workspace::Layout.module_dir(left).should_not eq(Tango::Workspace::Layout.module_dir(right))
+    Tango::Workspace::Layout.build_output(left).should_not eq(Tango::Workspace::Layout.build_output(right))
+    Tango::Workspace::Layout.execution_module_file(left).should_not eq(Tango::Workspace::Layout.execution_module_file(left))
+  end
+
   it "keeps source line and column on ranges built from parser locations" do
     file = Tango::Source::File.new("probe.tn", "a\nbc")
     range = file.range_at(2, 2)
@@ -131,5 +148,18 @@ describe Tango::Frontend::SourceGraph::Loader do
     semantic.bytesize.should eq(entry.code.bytesize)
     semantic.lines.first.should eq("                ")
     semantic.lines.last.should eq("puts add")
+  end
+
+  it "turns dependency I/O failures into require diagnostics" do
+    resolver = Tango::Frontend::SourceGraph::Resolver.new do |_request, _from|
+      raise File::NotFoundError.new("dependency disappeared", file: "dependency.tn")
+    end
+    entry = Tango::Source::File.new("main.tn", "require \"./dependency\"\n")
+
+    loaded = Tango::Frontend::SourceGraph::Loader.load(entry, resolver)
+
+    loaded.diagnostics.size.should eq(1)
+    loaded.diagnostics.first.code.should eq(Tango::Diagnostics::FRONT_REQUIRE)
+    loaded.diagnostics.first.message.should contain("couldn't read required source")
   end
 end

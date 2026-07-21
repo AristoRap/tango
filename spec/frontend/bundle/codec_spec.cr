@@ -54,23 +54,22 @@ describe Tango::Frontend::Bundle::Codec do
     index_error.location.should eq("$.source_provenance.entrypoint_index")
   end
 
-  it "preserves canonical Go through decoded representative whole programs" do
+  it "preserves canonical bundles, diagnostics, and Go through every checked-in example" do
     root = File.expand_path("../../..", __DIR__)
-    %w(string_split class float_systems enum_dispatch namespaced_constants select_hetero).each do |name|
-      path = File.join(root, "examples", "#{name}.tn")
-      file = Tango::Source::File.new(path, File.read(path))
-      source = Tango::Source::CompilationUnit.single(file)
-      frontend = Tango::Frontend::Crystal::Driver.run(source)
-      frontend.program.should_not be_nil, name
+    Dir.glob(File.join(root, "examples", "*.tn")).sort.each do |path|
+      name = File.basename(path)
+      file = Tango::Source::File.canonical(path, File.read(path))
+      frontend = Tango::Compiler::Driver.frontend(file, Tango::Frontend::SourceGraph::DISK_RESOLVER)
 
       document = Tango::Frontend::Bundle::Document.from(
         frontend,
         frontend_version: "crystal-1.20.2",
         prelude_version: "fixture-prelude"
       )
-      decoded = Tango::Frontend::Bundle::Codec.load(
-        Tango::Frontend::Bundle::Codec.dump(document)
-      ).to_frontend_result
+      encoded = Tango::Frontend::Bundle::Codec.dump(document)
+      restored = Tango::Frontend::Bundle::Codec.load(encoded)
+      Tango::Frontend::Bundle::Codec.dump(restored).should eq(encoded), name
+      decoded = restored.to_frontend_result
 
       original_snapshot = Tango::Compiler::CoreDriver.run(frontend)
       decoded_snapshot = Tango::Compiler::CoreDriver.run(decoded)

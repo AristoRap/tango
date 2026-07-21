@@ -138,6 +138,7 @@ describe "editor semantic features" do
     source = "# stable\nvalue = 1\nputs value\n"
     messages = EditorSemanticSpecSupport.run([
       {jsonrpc: "2.0", method: "textDocument/didOpen", params: {textDocument: {uri: uri, text: source, version: 1}}},
+      {jsonrpc: "2.0", id: 80, method: "textDocument/semanticTokens/full", params: {textDocument: {uri: uri}}},
       {jsonrpc: "2.0", method: "textDocument/didChange", params: {textDocument: {uri: uri, version: 2}, contentChanges: [{text: "\n#{source}"}]}},
       {jsonrpc: "2.0", id: 8, method: "textDocument/semanticTokens/full", params: {textDocument: {uri: uri}}},
     ])
@@ -235,6 +236,7 @@ describe "editor semantic features" do
     current = "\n#{source}"
     messages = EditorSemanticSpecSupport.run([
       {jsonrpc: "2.0", method: "textDocument/didOpen", params: {textDocument: {uri: uri, text: source, version: 1}}},
+      {jsonrpc: "2.0", id: 81, method: "textDocument/semanticTokens/full", params: {textDocument: {uri: uri}}},
       {jsonrpc: "2.0", method: "textDocument/didChange", params: {textDocument: {uri: uri, version: 2}, contentChanges: [{text: current}]}},
       {jsonrpc: "2.0", id: 5, method: "textDocument/inlayHint", params: {textDocument: {uri: uri}, range: {start: {line: 0, character: 0}, end: {line: 7, character: 100}}}},
     ])

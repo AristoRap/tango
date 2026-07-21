@@ -70,6 +70,7 @@ describe "editor completion and signature help" do
     stale_cursor = %(puts "😀"; unknown_receiver.).size + 1
     messages = EditorCompletionSpecSupport.run([
       {jsonrpc: "2.0", method: "textDocument/didOpen", params: {textDocument: {uri: uri, text: valid, version: 1}}},
+      {jsonrpc: "2.0", id: 110, method: "textDocument/semanticTokens/full", params: {textDocument: {uri: uri}}},
       {jsonrpc: "2.0", method: "textDocument/didChange", params: {textDocument: {uri: uri, version: 2}, contentChanges: [{text: broken}]}},
       {jsonrpc: "2.0", id: 2, method: "textDocument/completion", params: {textDocument: {uri: uri}, position: {line: 11, character: cursor}}},
     ])
@@ -123,6 +124,7 @@ describe "editor completion and signature help" do
     broken = valid.sub("puts p.x", "puts p.")
     messages = EditorCompletionSpecSupport.run([
       {jsonrpc: "2.0", method: "textDocument/didOpen", params: {textDocument: {uri: uri, text: valid, version: 1}}},
+      {jsonrpc: "2.0", id: 111, method: "textDocument/semanticTokens/full", params: {textDocument: {uri: uri}}},
       {jsonrpc: "2.0", method: "textDocument/didChange", params: {textDocument: {uri: uri, version: 2}, contentChanges: [{text: broken}]}},
       {jsonrpc: "2.0", id: 11, method: "textDocument/completion", params: {textDocument: {uri: uri}, position: {line: 12, character: 7}}},
     ])
@@ -158,6 +160,7 @@ describe "editor completion and signature help" do
     broken = valid.sub("puts alpha.alpha + beta.beta", "puts alpha.")
     messages = EditorCompletionSpecSupport.run([
       {jsonrpc: "2.0", method: "textDocument/didOpen", params: {textDocument: {uri: uri, text: valid, version: 1}}},
+      {jsonrpc: "2.0", id: 112, method: "textDocument/semanticTokens/full", params: {textDocument: {uri: uri}}},
       {jsonrpc: "2.0", method: "textDocument/didChange", params: {textDocument: {uri: uri, version: 2}, contentChanges: [{text: broken}]}},
       {jsonrpc: "2.0", id: 10, method: "textDocument/completion", params: {textDocument: {uri: uri}, position: {line: 18, character: 11}}},
     ])

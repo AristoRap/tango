@@ -707,7 +707,9 @@ module Tango
           when "tango_chan_receive"    then IR::NIR::ChannelOp::Kind::Receive
           when "tango_chan_receive_q"  then IR::NIR::ChannelOp::Kind::ReceiveMaybe
           when "tango_chan_next_state" then IR::NIR::ChannelOp::Kind::NextState
-          else                              IR::NIR::ChannelOp::Kind::Close
+          when "tango_chan_close"      then IR::NIR::ChannelOp::Kind::Close
+          else
+            raise ArgumentError.new("unknown channel primitive #{symbol}")
           end
         end
 

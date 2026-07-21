@@ -4,6 +4,9 @@ module Tango
       # Owns the Crystal-specific half of compilation and exports only neutral
       # Tango data.
       class Driver
+        @syntax_surface : SyntaxSurface::Index
+        @surface_roots : Hash(String, ::Crystal::ASTNode)
+
         def self.run(source : Source::CompilationUnit) : Frontend::Result
           new(source).run
         end
@@ -16,7 +19,9 @@ module Tango
         end
 
         def initialize(@source : Source::CompilationUnit)
-          @syntax_surface = SyntaxSurfaceBuilder.build(@source)
+          parsed_surface = SyntaxSurfaceBuilder.build_with_roots(@source)
+          @syntax_surface = parsed_surface.index
+          @surface_roots = parsed_surface.roots
         end
 
         def run : Frontend::Result
@@ -32,7 +37,8 @@ module Tango
             # from application files still pass through this check.
             next [] of Diagnostic if Workspace::Layout.bundled_package_path?(file.path)
 
-            surface = Semantic.parse(file.code, file.path)
+            surface = @surface_roots[file.identity]?
+            next [] of Diagnostic unless surface
             InternalCheck.run(semantic.program, semantic.node, surface, file)
           end
           return failed(internal_diagnostics) unless internal_diagnostics.empty?

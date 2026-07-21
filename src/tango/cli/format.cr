@@ -163,9 +163,7 @@ module Tango
       end
 
       private def canonical_identity(path : String) : String
-        File.realpath(path)
-      rescue
-        File.expand_path(path)
+        Source::File.canonical_identity(path)
       end
 
       private def render_diagnostics(source : String, path : String, diagnostics : Array(Diagnostic)) : Nil

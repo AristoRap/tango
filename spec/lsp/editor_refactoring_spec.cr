@@ -199,6 +199,7 @@ describe "editor refactoring and code actions" do
       {jsonrpc: "2.0", method: "textDocument/didOpen", params: {textDocument: {uri: library_uri, text: "require \"tango/fs\"\nputs File.read(\"x\")\n", version: 1}}},
       {jsonrpc: "2.0", id: 9, method: "textDocument/prepareRename", params: {textDocument: {uri: library_uri}, position: {line: 1, character: 11}}},
       {jsonrpc: "2.0", method: "textDocument/didOpen", params: {textDocument: {uri: stale_uri, text: "value = 1\nputs value\n", version: 1}}},
+      {jsonrpc: "2.0", id: 90, method: "textDocument/semanticTokens/full", params: {textDocument: {uri: stale_uri}}},
       {jsonrpc: "2.0", method: "textDocument/didChange", params: {textDocument: {uri: stale_uri, version: 2}, contentChanges: [{text: "# changed\nvalue = 1\nputs value\n"}]}},
       {jsonrpc: "2.0", id: 10, method: "textDocument/rename", params: {textDocument: {uri: stale_uri}, position: {line: 2, character: 7}, newName: "total"}},
     ])

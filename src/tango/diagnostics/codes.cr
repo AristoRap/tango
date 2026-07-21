@@ -15,6 +15,7 @@ module Tango
     CHECK_GO_VERSION        = "check.go-version"
     CHECK_CLEAN             = "check.clean"
     CHECK_FORMATTER         = "check.formatter"
+    CHECK_WORKSPACE         = "check.workspace"
     LINT_RETURN_TYPE        = "lint.return-type"
     LINT_UNUSED_LOCAL       = "lint.unused-local"
     LINT_UNUSED_BLOCK_ARG   = "lint.unused-block-arg"

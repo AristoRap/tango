@@ -64,14 +64,32 @@ describe "first fused collection plan" do
   end
 
   it "retains the fallback when a transform can raise" do
-    unsafe = <<-TANGO
-      values = [1, 2, 3]
-      puts values.select { |value| 10 // value > 2 }.map { |value| value }.reduce(0) { |sum, value| sum + value }
-      TANGO
-    snapshot = Tango.snapshot(unsafe, filename: "unsafe_fusion.tn", profile: Tango::Compiler::CompilationProfile::Release)
-    unsafe_program = expect_present(snapshot.nir)
-    unsafe_fold = expect_present(find_fused_fold_for_path(unsafe_program, "unsafe_fusion.tn"))
-    expect_present(snapshot.plans).semantic_collections[unsafe_fold.id].should be_a(Tango::Planning::Plans::MaterializeViaFallback)
+    unsafe_sources = {
+      "integer_arithmetic" => <<-TANGO,
+        values = [1, 2, 3]
+        puts values.select { |value| 10 // value > 2 }.map { |value| value }.reduce(0) { |sum, value| sum + value }
+        TANGO
+      "float_parse" => <<-TANGO,
+        values = ["1.5", "bad"]
+        puts values.select { |value| value.to_f > 0.0 }.map { |value| value }.reduce("") { |sum, value| sum + value }
+        TANGO
+      "checked_cast" => <<-TANGO,
+        values = ["one", 2]
+        puts values.select { |value| value.as(String).size > 0 }.map { |value| value }.reduce("") { |sum, value| sum + value.as(String) }
+        TANGO
+      "exception_order" => <<-TANGO,
+        values = ["1.5", "bad", 1]
+        puts values.select { |value| value.as(String).to_f > 0.0 }.map { |value| value.as(Int32) }.reduce(0) { |sum, value| sum + value }
+        TANGO
+    }
+
+    unsafe_sources.each do |name, unsafe|
+      path = "unsafe_fusion_#{name}.tn"
+      snapshot = Tango.snapshot(unsafe, filename: path, profile: Tango::Compiler::CompilationProfile::Release)
+      unsafe_program = expect_present(snapshot.nir)
+      unsafe_fold = expect_present(find_fused_fold_for_path(unsafe_program, path))
+      expect_present(snapshot.plans).semantic_collections[unsafe_fold.id].should be_a(Tango::Planning::Plans::MaterializeViaFallback)
+    end
   end
 end
 

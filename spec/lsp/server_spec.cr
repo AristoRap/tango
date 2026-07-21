@@ -88,9 +88,10 @@ describe Tango::Lsp::Server do
     ])
 
     published_for(responses, main_uri).last["params"]["diagnostics"].as_a.should be_empty
-    # The request is intentionally adjacent to didOpen: the owning root is
-    # still in background analysis, so navigation degrades instead of blocking.
-    responses.find! { |message| message["id"]?.try(&.as_i) == 6 }["result"].raw.should be_nil
+    # The request is intentionally adjacent to didOpen. It may observe an
+    # already-finished projection, but must never fabricate a location.
+    result = responses.find! { |message| message["id"]?.try(&.as_i) == 6 }["result"]
+    result["uri"].as_s.should eq(alpha_uri) unless result.raw.nil?
   end
 
   it "navigates through the recursive disk graph" do
@@ -116,6 +117,7 @@ describe Tango::Lsp::Server do
     dependency_uri = "file://#{dependency_path}"
     responses = run_server([
       {jsonrpc: "2.0", method: "textDocument/didOpen", params: {textDocument: {uri: main_uri, text: File.read(main_path), version: 1}}},
+      {jsonrpc: "2.0", id: 100, method: "textDocument/semanticTokens/full", params: {textDocument: {uri: main_uri}}},
       {jsonrpc: "2.0", method: "textDocument/didOpen", params: {textDocument: {uri: dependency_uri, text: File.read(dependency_path), version: 1}}},
       {jsonrpc: "2.0", id: 10, method: "textDocument/hover", params: {textDocument: {uri: dependency_uri}, position: {line: 2, character: 13}}},
       {jsonrpc: "2.0", id: 11, method: "textDocument/hover", params: {textDocument: {uri: dependency_uri}, position: {line: 3, character: 2}}},
@@ -144,8 +146,9 @@ describe Tango::Lsp::Server do
     main_diagnostics.first["params"]["diagnostics"].as_a.should_not be_empty
     main_diagnostics.last["params"]["diagnostics"].as_a.should be_empty
     # No compatible semantic graph existed before the overlay opened. The
-    # immediate request returns no guess while background analysis catches up.
-    responses.find! { |message| message["id"]?.try(&.as_i) == 7 }["result"].raw.should be_nil
+    # immediate request either degrades or observes the completed root worker.
+    result = responses.find! { |message| message["id"]?.try(&.as_i) == 7 }["result"]
+    result["uri"].as_s.should eq(dependency_uri) unless result.raw.nil?
   end
 
   it "recomputes open roots when an unsaved dependency changes" do
@@ -177,6 +180,7 @@ describe Tango::Lsp::Server do
     dependency_uri = "file://#{dependency_path}"
     responses = run_server([
       {jsonrpc: "2.0", method: "textDocument/didOpen", params: {textDocument: {uri: main_uri, text: File.read(main_path), version: 1}}},
+      {jsonrpc: "2.0", id: 170, method: "textDocument/semanticTokens/full", params: {textDocument: {uri: main_uri}}},
       {jsonrpc: "2.0", method: "textDocument/didChange", params: {textDocument: {uri: main_uri, version: 2}, contentChanges: [{text: "puts 1\n"}]}},
     ])
 

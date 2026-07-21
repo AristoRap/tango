@@ -1,3 +1,6 @@
+require "digest/sha256"
+require "random/secure"
+
 module Tango
   module Workspace
     module Layout
@@ -10,11 +13,15 @@ module Tango
       end
 
       def self.module_dir(path : String) : String
-        File.join(MODULE_ROOT, stem(path))
+        File.join(MODULE_ROOT, "generated", "#{slug(path)}-#{path_digest(path)}")
       end
 
       def self.module_file(path : String) : String
         File.join(module_dir(path), "main.go")
+      end
+
+      def self.execution_module_file(path : String) : String
+        File.join(module_dir(path), "#{Process.pid}-#{Random::Secure.hex(8)}", "main.go")
       end
 
       def self.cache_dir : String
@@ -34,11 +41,20 @@ module Tango
       end
 
       def self.build_output(path : String) : String
-        "./#{stem(path)}"
+        "./#{slug(path)}"
       end
 
-      def self.slug(path : String, root : String = repo_root) : String
-        strip_source_ext(path.sub("#{root}/", "").gsub('/', '_'))
+      def self.slug(path : String, root : String = Dir.current) : String
+        expanded = File.expand_path(path)
+        expanded_root = File.expand_path(root)
+        relative = if expanded.starts_with?("#{expanded_root}#{File::SEPARATOR}")
+                     expanded.lchop("#{expanded_root}#{File::SEPARATOR}")
+                   else
+                     File.basename(expanded)
+                   end
+        stripped = strip_source_ext(relative)
+        sanitized = stripped.gsub(/[^A-Za-z0-9._-]+/, "_").strip('_')
+        sanitized.empty? ? "source" : sanitized
       end
 
       def self.repo_root : String
@@ -87,6 +103,10 @@ module Tango
       private def self.strip_source_ext(name : String) : String
         SOURCE_EXTS.each { |ext| return name.rchop(ext) if name.ends_with?(ext) }
         name
+      end
+
+      private def self.path_digest(path : String) : String
+        Digest::SHA256.hexdigest(Source::File.canonical_identity(path))[0, 12]
       end
     end
   end

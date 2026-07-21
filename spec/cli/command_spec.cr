@@ -313,6 +313,47 @@ describe "tango emit" do
 end
 
 describe "tango run" do
+  it "preserves eager exception order in development and release collection pipelines" do
+    source = <<-TANGO
+      values = ["1.5", "bad", 1]
+      puts values.select { |value| value.as(String).to_f > 0.0 }.map { |value| value.as(Int32) }.reduce(0) { |sum, value| sum + value }
+      TANGO
+
+    development = run_cli(["run", "-"], source)
+    release = run_cli(["run", "--release", "-"], source)
+
+    development[0].should eq(1)
+    release[0].should eq(1)
+    development[2].should contain(%(Invalid Float64: "bad"))
+    release[2].should contain(%(Invalid Float64: "bad"))
+    release[2].should_not contain("cast from")
+  end
+
+  it "rejects unknown flags and multiple source paths before reading files" do
+    [
+      ["run", "--unknown"],
+      ["run", "first.tn", "second.tn"],
+      ["build", "first.tn", "second.tn"],
+      ["emit", "go", "first.tn", "second.tn"],
+      ["dump", "nir", "first.tn", "second.tn"],
+    ].each do |argv|
+      status, out, err = run_cli(argv)
+      status.should eq(1)
+      out.should be_empty
+      err.should_not contain("Unhandled exception")
+      err.should match(/unknown option|multiple source files/)
+    end
+  end
+
+  it "reports an unreadable entrypoint without an exception trace" do
+    status, out, err = run_cli(["run", "/definitely/missing/tango-entry.tn"])
+
+    status.should eq(1)
+    out.should be_empty
+    err.should contain("tango: file operation failed")
+    err.should_not contain("Unhandled exception")
+  end
+
   it "preserves whitespace-split cardinality in release" do
     source = %(puts "  alpha\\u{00a0}beta\\t gamma  ".split.size\nputs " \\t\\n ".split.size\n)
     status, out, err = run_cli(["run", "--release", "-"], source)

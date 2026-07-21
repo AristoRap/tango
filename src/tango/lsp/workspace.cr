@@ -25,7 +25,7 @@ module Tango
       getter revision : Int64 = 0_i64
 
       def initialize(
-        log : IO = STDERR,
+        @log : IO = STDERR,
         debounce : Time::Span = AnalysisWorker::DEFAULT_DEBOUNCE,
         recovery_limit : Time::Span = AnalysisWorker::DEFAULT_RECOVERY_LIMIT,
         @on_analysis : Proc(Nil) = -> { nil },
@@ -34,7 +34,7 @@ module Tango
         @bundled_packages = Dir.glob(File.join(root, "**", "*.tn")).sort.map do |path|
           path.sub("#{root}#{File::SEPARATOR}", "").rchop(".tn")
         end.select { |request| Frontend::SourceGraph.bundled_request?(request) }
-        worker = AnalysisWorker.new(log, debounce, recovery_limit) do |result|
+        worker = AnalysisWorker.new(@log, debounce, recovery_limit) do |result|
           apply_analysis(result)
         end
         @analysis = AnalysisState.new(worker)
@@ -72,20 +72,17 @@ module Tango
         end
 
         context = owning_disk_context(path, resolver) if affected.empty?
-        analysis_path = context.try(&.path) || path
-        analysis_text = context.try { |owner| analysis_text_for(owner.path) } || text
         document = Document.new(
           uri,
           path,
           text,
           version,
           resolver,
-          @revision,
-          analysis_path,
-          analysis_text
+          @revision
         )
         @state.documents[uri] = document
         @state.analysis_contexts[uri] = context if context
+        affected << document unless affected.includes?(document)
         affected.each { |existing| existing.refresh_surface(resolver, @revision) }
         schedule_affected(affected)
         document
@@ -193,24 +190,30 @@ module Tango
       end
 
       # An open dependency is a buffer overlay, not a second program root. A
-      # document is owned when another open snapshot contains its path in a
-      # strictly larger graph. The size condition keeps peer roots distinct and
-      # makes cycle membership deterministic.
+      # document is owned when another open source graph contains its path.
+      # Mutual cycle membership is broken by stable URI order, never graph size.
       def root_documents : Array(Document)
         @state.documents.values.reject do |candidate|
           @state.documents.each_value.any? do |owner|
-            owner.uri != candidate.uri &&
-              owner.snapshot.source.files.size > candidate.snapshot.source.files.size &&
-              owner.snapshot.source.file?(candidate.path)
+            document_owns?(owner, candidate, semantic: false)
           end
         end
       end
 
-      def analysis_snapshot(path : String, preferred_uri : String) : Compiler::Snapshot
-        analysis_snapshot?(path, preferred_uri) || raise "missing compatible LSP analysis for #{preferred_uri}"
+      def analysis_snapshot?(path : String, preferred_uri : String) : Compiler::Snapshot?
+        snapshot = compatible_analysis_snapshot(path, preferred_uri)
+        return snapshot if snapshot
+        initial_requests = @analysis.requests.count { |request| request.root_uri == preferred_uri }
+        return nil unless initial_requests == 1
+
+        # Initial open schedules analysis before the document becomes queryable.
+        # A semantic request may await that already-running isolated worker, but
+        # it never starts a compiler walk or builds facts on the request fiber.
+        worker.drain
+        compatible_analysis_snapshot(path, preferred_uri)
       end
 
-      def analysis_snapshot?(path : String, preferred_uri : String) : Compiler::Snapshot?
+      private def compatible_analysis_snapshot(path : String, preferred_uri : String) : Compiler::Snapshot?
         preferred = @state.documents[preferred_uri]?
         roots = semantic_root_documents
         if preferred && roots.includes?(preferred)
@@ -220,7 +223,7 @@ module Tango
 
         owner = roots
           .select { |document| usable_for_query?(document.semantic_snapshot, path) }
-          .max_by? { |document| document.semantic_snapshot.try(&.source.files.size) || 0 }
+          .min_by? { |document| Source::File.canonical_identity(document.path) }
         if owner && (snapshot = owner.semantic_snapshot)
           return snapshot
         end
@@ -421,7 +424,8 @@ module Tango
               best_context = AnalysisContext.new(candidate_path)
               best_score = score
             end
-          rescue
+          rescue ex : File::Error
+            @log.puts "tango lsp root discovery skipped #{candidate_path}: #{ex.message}"
             next
           end
         end
@@ -440,10 +444,7 @@ module Tango
       end
 
       private def canonical_path(path : String) : String
-        expanded = File.expand_path(path)
-        File.exists?(expanded) ? File.realpath(expanded) : expanded
-      rescue
-        path
+        Source::File.canonical_identity(path)
       end
 
       private def compatible_semantic_span(
@@ -474,12 +475,19 @@ module Tango
           next true unless candidate_snapshot
 
           @state.documents.each_value.any? do |owner|
-            owner_snapshot = owner.semantic_snapshot
-            owner.uri != candidate.uri && owner_snapshot &&
-              owner_snapshot.source.files.size > candidate_snapshot.source.files.size &&
-              owner_snapshot.source.file?(candidate.path)
+            document_owns?(owner, candidate, semantic: true)
           end
         end
+      end
+
+      private def document_owns?(owner : Document, candidate : Document, semantic : Bool) : Bool
+        return false if owner.uri == candidate.uri
+        owner_source = semantic ? owner.semantic_snapshot.try(&.source) : owner.snapshot.source
+        return false unless owner_source && owner_source.file?(candidate.path)
+
+        candidate_source = semantic ? candidate.semantic_snapshot.try(&.source) : candidate.snapshot.source
+        mutual = candidate_source.try(&.file?(owner.path))
+        !mutual || owner.uri < candidate.uri
       end
 
       private def usable_for_query?(snapshot : Compiler::Snapshot?, path : String) : Bool

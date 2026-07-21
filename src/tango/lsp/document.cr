@@ -22,16 +22,14 @@ module Tango
         version : Int32? = nil,
         resolver : Frontend::SourceGraph::Resolver = Frontend::SourceGraph::DISK_RESOLVER,
         @graph_revision : Int64 = 0_i64,
-        analysis_path : String? = nil,
-        analysis_text : String = text,
       )
         @text = text
         @version = version
         @line_index = Position::LineIndex.new(text)
         @source_line_index = Source::LineIndex.new(text)
-        @snapshot = Tango.pre_target_snapshot(analysis_text, filename: analysis_path || path, resolver: resolver)
-        @semantic_snapshot = @snapshot.semantic_ready? ? @snapshot : nil
-        @analysis_revision = @semantic_snapshot ? @graph_revision : 0_i64
+        @snapshot = Tango.editor_surface_snapshot(text, filename: path, resolver: resolver)
+        @semantic_snapshot = nil
+        @analysis_revision = 0_i64
       end
 
       def update(

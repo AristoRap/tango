@@ -4,9 +4,18 @@ module Tango
       # The one parser-owned source walk used to preserve declarations Crystal
       # does not instantiate. Only SyntaxSurface records cross this boundary.
       module SyntaxSurfaceBuilder
+        record Build,
+          index : SyntaxSurface::Index,
+          roots : Hash(String, ::Crystal::ASTNode)
+
         def self.build(source : Source::CompilationUnit) : SyntaxSurface::Index
+          build_with_roots(source).index
+        end
+
+        def self.build_with_roots(source : Source::CompilationUnit) : Build
           declarations = [] of SyntaxSurface::Declaration
           scopes = [] of SyntaxSurface::Scope
+          roots = {} of String => ::Crystal::ASTNode
 
           source.files.each do |file|
             begin
@@ -14,6 +23,7 @@ module Tango
               parser.filename = file.path
               parser.wants_doc = true
               root = parser.parse
+              roots[file.identity] = root
               root.accept(Visitor.new(file, declarations, scopes))
             rescue ::Crystal::CodeError
               # The current diagnostic snapshot owns parse failure reporting.
@@ -21,7 +31,7 @@ module Tango
             end
           end
 
-          SyntaxSurface::Index.new(declarations, scopes)
+          Build.new(SyntaxSurface::Index.new(declarations, scopes), roots)
         end
 
         private class Visitor < ::Crystal::Visitor

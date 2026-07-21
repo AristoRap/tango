@@ -197,12 +197,16 @@ module Tango
             @may_raise = true
           when IR::NIR::Return, IR::NIR::Break, IR::NIR::Next
             @abrupt_control_flow = true
-          when IR::NIR::ArraySet, IR::NIR::ArrayPush, IR::NIR::HashSet
+          when IR::NIR::ArraySet, IR::NIR::ArrayPush, IR::NIR::HashSet, IR::NIR::IndexedWrite
             add_effect(Facts::CollectionBlockEffect::CollectionMutation)
             @may_raise = true
-          when IR::NIR::ArrayGet, IR::NIR::HashGet, IR::NIR::HashFetch, IR::NIR::HashKeyAt, IR::NIR::StringCharAt
+          when IR::NIR::ArrayGet, IR::NIR::HashGet, IR::NIR::HashFetch, IR::NIR::HashKeyAt,
+               IR::NIR::IndexedRead, IR::NIR::StringCharAt, IR::NIR::Cast
             @may_raise = true
-          when IR::NIR::StringToInteger
+          when IR::NIR::StringToFloat, IR::NIR::StringToInteger
+            @may_raise = true
+          when IR::NIR::StringEachChar
+            add_effect(Facts::CollectionBlockEffect::Call)
             @may_raise = true
           when IR::NIR::Spawn, IR::NIR::ChannelOp, IR::NIR::Select
             add_effect(Facts::CollectionBlockEffect::Concurrency)

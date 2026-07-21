@@ -135,6 +135,19 @@ describe "editor recovery queries" do
     workspace.try(&.stop)
   end
 
+  it "schedules initial semantic analysis and resolves equal-sized ownership without a size heuristic" do
+    first_uri = "file:///virtual/equal_a.tn"
+    second_uri = "file:///virtual/equal_b.tn"
+    workspace = Tango::Lsp::Workspace.new(IO::Memory.new, debounce: Time::Span.zero)
+    workspace.open(first_uri, "/virtual/equal_a.tn", "require \"./equal_b\"\ndef a : Int32\n  1\nend\n", 1)
+    workspace.open(second_uri, "/virtual/equal_b.tn", "require \"./equal_a\"\ndef b : Int32\n  2\nend\n", 1)
+
+    workspace.analysis_requests.map(&.root_uri).should contain(first_uri)
+    workspace.root_documents.map(&.uri).should eq([first_uri])
+  ensure
+    workspace.try(&.stop)
+  end
+
   it "debounces rapid edits and publishes diagnostics only with current document versions" do
     uri = "file:///virtual/recovery_stress.tn"
     valid = "def answer(value : Int32) : Int32\n  value\nend\nputs answer(1)\n"
@@ -143,10 +156,10 @@ describe "editor recovery queries" do
       {jsonrpc: "2.0", method: "textDocument/didOpen", params: {textDocument: {uri: uri, text: valid, version: 1}}},
       {jsonrpc: "2.0", method: "textDocument/didChange", params: {textDocument: {uri: uri, version: 2}, contentChanges: [{text: broken}]}},
       {jsonrpc: "2.0", method: "textDocument/didChange", params: {textDocument: {uri: uri, version: 3}, contentChanges: [{text: valid}]}},
-      {jsonrpc: "2.0", id: 3, method: "textDocument/hover", params: {textDocument: {uri: uri}, position: {line: 3, character: 7}}},
+      {jsonrpc: "2.0", id: 3, method: "textDocument/documentSymbol", params: {textDocument: {uri: uri}}},
     ])
 
-    EditorRecoverySpecSupport.response(messages, 3)["contents"]["value"].as_s.should contain("answer")
+    EditorRecoverySpecSupport.response(messages, 3).as_a.map { |symbol| symbol["name"].as_s }.should contain("answer")
     publications = EditorRecoverySpecSupport.published(messages, uri)
     publications.map { |message| message["params"]["version"].as_i }.should contain(3)
     publications.none? do |message|
@@ -207,5 +220,32 @@ describe "editor recovery queries" do
     restored.editor_index.receiver_at(path, expect_present(source.index("value\n"))).should_not be_nil
     symbol = restored.editor_index.symbol_at(path, expect_present(source.rindex("value")))
     restored.editor_index.occurrences(expect_present(symbol)).size.should eq(2)
+  end
+
+  it "round-trips complete diagnostics and rejects a missing analysis entrypoint" do
+    range = Tango::Source::Range.new("/virtual/main.tn", 0, 4)
+    related = Tango::Source::Range.new("/virtual/dependency.tn", 5, 9)
+    source = Tango::Source::CompilationUnit.new(
+      [Tango::Source::File.new("/virtual/main.tn", "nope"), Tango::Source::File.new("/virtual/dependency.tn", "value = 1")],
+      Tango::Source::File.new("/virtual/main.tn", "nope")
+    )
+    diagnostic = Tango::Diagnostic.new(
+      Tango::Diagnostic::Origin::Frontend,
+      Tango::Diagnostic::Severity::Error,
+      "front.test",
+      "broken",
+      range: range,
+      related: [{related, "declared here"}],
+      hints: ["fix it"]
+    )
+    snapshot = Tango::Compiler::Snapshot.new(source: source, diagnostics: [diagnostic])
+    encoded = Tango::Lsp::AnalysisCodec.dump(snapshot)
+    restored = Tango::Lsp::AnalysisCodec.load(encoded)
+
+    restored.diagnostics.first.related.should eq([{related, "declared here"}])
+    restored.diagnostics.first.hints.should eq(["fix it"])
+
+    malformed = encoded.sub(%("entrypoint":"/virtual/main.tn"), %("entrypoint":"/virtual/missing.tn"))
+    expect_raises(ArgumentError) { Tango::Lsp::AnalysisCodec.load(malformed) }
   end
 end

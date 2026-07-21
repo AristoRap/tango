@@ -168,9 +168,9 @@ module Tango
           when Tango::IR::LIR::Widen
             IR::Call.new(IR::Ident.new(value.conversion), [translate_value(value.value, requirements)] of IR::Expr)
           when Tango::IR::LIR::UnsupportedValue
-            IR::StringLit.new(value.reason)
+            raise ArgumentError.new("unsupported LIR value: #{value.reason}")
           else
-            IR::StringLit.new("unsupported LIR value")
+            raise ArgumentError.new("unsupported LIR value: #{value.class.name}")
           end
         end
       end

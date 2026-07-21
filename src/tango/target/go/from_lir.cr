@@ -118,10 +118,8 @@ module Tango
                          [translate_select(stmt, requirements)] of IR::Stmt
                        when Tango::IR::LIR::UnsupportedStmt
                          raise "unsupported LIR statement: #{stmt.reason}"
-                         [IR::ExprStmt.new(IR::Call.new(IR::Ident.new("panic"), [IR::StringLit.new(stmt.reason)] of IR::Expr))] of IR::Stmt
                        else
                          raise "unsupported LIR statement: #{stmt.class.name}"
-                         [IR::ExprStmt.new(IR::Call.new(IR::Ident.new("panic"), [IR::StringLit.new("unsupported LIR statement")] of IR::Expr))] of IR::Stmt
                        end
           prepend_line_directive(stmt.loc, translated)
         end

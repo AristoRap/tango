@@ -8,6 +8,7 @@ require "./lsp/recovery_query"
 require "./lsp/uri_path"
 require "./lsp/type_hierarchy"
 require "./lsp/server"
+require "./lsp/server_diagnostics"
 
 if Tango::Lsp::AnalysisWorker.child_process?
   Tango::Lsp::AnalysisWorker.run_child

@@ -117,7 +117,8 @@ describe Tango::Toolchain::Go do
       diagnostic = result.diagnostics.first
       diagnostic.origin.check?.should be_true
       diagnostic.code.should eq(Tango::Diagnostics::CHECK_GO_VET)
-      diagnostic.file.should eq(Tango::Workspace::Layout.module_file("spec_hygiene_vet.tn"))
+      expect_present(diagnostic.file).should start_with(Tango::Workspace::Layout.module_dir("spec_hygiene_vet.tn"))
+      expect_present(diagnostic.file).should end_with("main.go")
       diagnostic.line.should eq(3)
       diagnostic.column.should eq(2)
       diagnostic.message.should contain("fmt.Printf format %d")
@@ -181,6 +182,24 @@ describe Tango::Toolchain::Go do
       raced.status.should eq(0)
       raced.diagnostics.should be_empty
       raced_error.to_s.should contain("build-args:build -race -o #{output_path}")
+    end
+  end
+
+  it "returns a typed check when the selected Go executable disappears before execution" do
+    go_script = version_script(<<-SH)
+    if [ "$1" = "vet" ]; then
+      rm "$0"
+      exit 0
+    fi
+    exit 98
+    SH
+
+    fake_toolchain("disappearing", go_script, "#!/bin/sh\ncat\n") do
+      result = Tango::Toolchain::Go.run_source("package main\nfunc main() {}\n", "disappearing.tn", IO::Memory.new, IO::Memory.new)
+
+      result.status.should eq(1)
+      result.diagnostics.first.code.should eq(Tango::Diagnostics::CHECK_GO)
+      result.diagnostics.first.message.should contain("couldn't execute Go toolchain")
     end
   end
 end

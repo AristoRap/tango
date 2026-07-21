@@ -40,59 +40,41 @@ module Tango
           help(@error)
           1
         end
+      rescue ex : File::Error
+        @error.puts "tango: file operation failed: #{ex.message}"
+        1
       end
 
+      private record ProgramOptions,
+        source_path : String?,
+        output_path : String?,
+        race : Bool,
+        release : Bool
+
+      private record SourceArgument,
+        valid : Bool,
+        path : String?
+
       private def run_program : Int32
-        source_path = nil
-        race = false
-        release = false
+        options = parse_program_options(build: false)
+        return 1 unless options
 
-        until @argv.empty?
-          arg = @argv.shift
-          case arg
-          when "--race"
-            race = true
-          when "--release"
-            release = true
-          else
-            source_path = arg
-          end
-        end
-
-        source = SourceInput.read(source_path, @input)
-        go_source = compile(source, compilation_profile(release))
+        source = SourceInput.read(options.source_path, @input)
+        go_source = compile(source, compilation_profile(options.release))
         return 1 unless go_source
-        result = ::Tango::Toolchain::Go.run_source(go_source, source.filename, @output, @error, race: race)
+        result = ::Tango::Toolchain::Go.run_source(go_source, source.filename, @output, @error, race: options.race)
         DiagnosticOutput.render(source, result.diagnostics, @error)
         result.status
       end
 
       private def build_program : Int32
-        source_path = nil
-        output_path = nil
-        race = false
-        release = false
+        options = parse_program_options(build: true)
+        return 1 unless options
 
-        until @argv.empty?
-          arg = @argv.shift
-          case arg
-          when "-o", "--output"
-            next_value = @argv.shift?
-            return missing_value(arg) unless next_value
-            output_path = next_value
-          when "--race"
-            race = true
-          when "--release"
-            release = true
-          else
-            source_path = arg
-          end
-        end
-
-        source = SourceInput.read(source_path, @input)
-        go_source = compile(source, compilation_profile(release))
+        source = SourceInput.read(options.source_path, @input)
+        go_source = compile(source, compilation_profile(options.release))
         return 1 unless go_source
-        result = ::Tango::Toolchain::Go.build_source(go_source, source.filename, output_path || ::Tango::Workspace::Layout.build_output(source.filename), @error, race: race)
+        result = ::Tango::Toolchain::Go.build_source(go_source, source.filename, options.output_path || ::Tango::Workspace::Layout.build_output(source.filename), @error, race: options.race)
         DiagnosticOutput.render(source, result.diagnostics, @error)
         result.status
       end
@@ -104,8 +86,14 @@ module Tango
           return 1
         end
 
+        if @argv.count("--release") > 1
+          command_usage("usage: tango emit go [--release] [file|-]", "--release specified more than once")
+          return 1
+        end
         release = !!@argv.delete("--release")
-        source = SourceInput.read(@argv.shift?, @input)
+        source_argument = single_source_argument("usage: tango emit go [--release] [file|-]")
+        return 1 unless source_argument.valid
+        source = SourceInput.read(source_argument.path, @input)
         go_source = compile(source, compilation_profile(release))
         return 1 unless go_source
         formatted = ::Tango::Toolchain::Go.format_source(go_source)
@@ -127,6 +115,11 @@ module Tango
           return 1
         end
 
+        usage = "usage: tango dump nir|facts|plans|lir [--trace] [--release] [file|-]"
+        if @argv.count("--trace") > 1 || @argv.count("--release") > 1
+          command_usage(usage, "dump flags may be specified only once")
+          return 1
+        end
         trace = @argv.delete("--trace")
         release = !!@argv.delete("--release")
         if trace && !target.in?("nir", "lir")
@@ -134,7 +127,9 @@ module Tango
           return 1
         end
 
-        source = SourceInput.read(@argv.shift?, @input)
+        source_argument = single_source_argument(usage)
+        return 1 unless source_argument.valid
+        source = SourceInput.read(source_argument.path, @input)
         snapshot = ::Tango.snapshot(source.code, filename: source.filename, stable_path: source.stable_path?, profile: compilation_profile(release))
 
         rendered =
@@ -224,9 +219,57 @@ module Tango
         nil
       end
 
-      private def missing_value(flag : String) : Int32
-        @error.puts "missing value for #{flag}"
-        1
+      private def parse_program_options(build : Bool) : ProgramOptions?
+        source_path : String? = nil
+        output_path : String? = nil
+        race = false
+        release = false
+        usage = build ? "usage: tango build [file|-] [-o output] [--race] [--release]" : "usage: tango run [file|-] [--race] [--release]"
+
+        until @argv.empty?
+          arg = @argv.shift
+          case arg
+          when "-o", "--output"
+            return command_usage(usage, "#{arg} is only supported by tango build") unless build
+            next_value = @argv.shift?
+            unless next_value
+              command_usage(usage, "missing value for #{arg}")
+              return nil
+            end
+            return command_usage(usage, "missing value for #{arg}") if next_value.starts_with?('-')
+            return command_usage(usage, "output path specified more than once") if output_path
+            output_path = next_value
+          when "--race"
+            return command_usage(usage, "--race specified more than once") if race
+            race = true
+          when "--release"
+            return command_usage(usage, "--release specified more than once") if release
+            release = true
+          else
+            return command_usage(usage, "unknown option: #{arg}") if arg.starts_with?('-') && arg != "-"
+            return command_usage(usage, "multiple source files are not supported") if source_path
+            source_path = arg
+          end
+        end
+
+        ProgramOptions.new(source_path, output_path, race, release)
+      end
+
+      private def single_source_argument(usage : String) : SourceArgument
+        if unknown = @argv.find { |arg| arg.starts_with?('-') && arg != "-" }
+          command_usage(usage, "unknown option: #{unknown}")
+          return SourceArgument.new(false, nil)
+        end
+        if @argv.size > 1
+          command_usage(usage, "multiple source files are not supported")
+          return SourceArgument.new(false, nil)
+        end
+        SourceArgument.new(true, @argv.shift?)
+      end
+
+      private def command_usage(usage : String, message : String) : Nil
+        @error.puts "tango: #{message}"
+        @error.puts usage
       end
 
       private def compilation_profile(release : Bool) : Compiler::CompilationProfile

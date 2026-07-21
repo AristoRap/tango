@@ -80,10 +80,7 @@ module Tango
         end
 
         private def identity(path : String) : String
-          expanded = ::File.expand_path(path)
-          ::File.exists?(expanded) ? ::File.realpath(expanded) : expanded
-        rescue
-          path
+          Source::File.canonical_identity(path)
         end
       end
 
@@ -166,7 +163,12 @@ module Tango
               next
             end
 
-            resolved = @resolver.call(request, file)
+            resolved = begin
+              @resolver.call(request, file)
+            rescue ex : File::Error
+              @state.diagnostics << require_diagnostic(file, range, "couldn't read required source '#{request}': #{ex.message}")
+              next
+            end
             if resolved.empty?
               message = glob?(request) ? "require glob '#{request}' matched no `.tn` files" : "can't find file '#{request}'"
               @state.diagnostics << require_diagnostic(file, range, message)

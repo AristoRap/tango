@@ -7,12 +7,15 @@ module Tango
       getter line_index : LineIndex
       getter? stable_path : Bool
 
-      def self.canonical(path : String, code : String, stable_path : Bool = true) : self
+      def self.canonical_identity(path : String) : String
         expanded = ::File.expand_path(path)
-        identity = ::File.exists?(expanded) ? ::File.realpath(expanded) : expanded
-        new(path, code, identity, stable_path)
-      rescue
-        new(path, code, path, stable_path)
+        ::File.exists?(expanded) ? ::File.realpath(expanded) : expanded
+      rescue ex : ::File::Error
+        ::File.expand_path(path)
+      end
+
+      def self.canonical(path : String, code : String, stable_path : Bool = true) : self
+        new(path, code, canonical_identity(path), stable_path)
       end
 
       def initialize(

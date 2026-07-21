@@ -51,6 +51,7 @@ module Tango
             kind = select_action_kind(element.name)
             receiver = element.obj
             return nil unless kind && receiver
+            return nil unless valid_select_action_arity?(element, kind)
             actions << SelectAction.new(element, kind, receiver)
           end
 
@@ -61,7 +62,7 @@ module Tango
           if_chain = nodes[start + 3]?
           return nil unless if_chain.is_a?(::Crystal::If)
 
-          split = select_arm_bodies(if_chain, actions.size, blocking: call.name == "select")
+          split = select_arm_bodies(if_chain, index_name, actions.size, blocking: call.name == "select")
           return nil unless split
           bodies, else_node = split
 
@@ -76,6 +77,10 @@ module Tango
           when "receive_select_action?" then IR::NIR::ChannelOp::Kind::ReceiveMaybe
           when "send_select_action"     then IR::NIR::ChannelOp::Kind::Send
           end
+        end
+
+        private def valid_select_action_arity?(call : ::Crystal::Call, kind : IR::NIR::ChannelOp::Kind) : Bool
+          kind.send? ? call.args.size == 1 : call.args.empty?
         end
 
         # `<var> = <tuple_name>[<idx>]` — a tuple-index bind; returns the bound
@@ -96,15 +101,32 @@ module Tango
         # Walks exactly `arms` `If`s of the index dispatch chain, collecting each
         # arm's body. The else after the last `If` is the `raise "BUG"` sentinel
         # when blocking (discarded) or the real `else` body when non-blocking.
-        private def select_arm_bodies(if_chain : ::Crystal::If, arms : Int32, blocking : Bool) : {Array(::Crystal::ASTNode), ::Crystal::ASTNode?}?
+        private def select_arm_bodies(if_chain : ::Crystal::If, index_name : String, arms : Int32, blocking : Bool) : {Array(::Crystal::ASTNode), ::Crystal::ASTNode?}?
           bodies = [] of ::Crystal::ASTNode
           node = if_chain.as(::Crystal::ASTNode)
-          arms.times do
+          arms.times do |index|
             return nil unless node.is_a?(::Crystal::If)
+            return nil unless select_index_condition?(node.cond, index_name, index)
             bodies << node.then
             node = node.else
           end
+          return nil if blocking && !select_bug_sentinel?(node)
           {bodies, blocking ? nil : node}
+        end
+
+        private def select_index_condition?(node : ::Crystal::ASTNode, index_name : String, index : Int32) : Bool
+          return false unless node.is_a?(::Crystal::Call) && node.name == "===" && node.args.size == 1
+          receiver = node.obj
+          value = node.args.first
+          receiver.is_a?(::Crystal::NumberLiteral) && receiver.value == index.to_s &&
+            value.is_a?(::Crystal::Var) && value.name == index_name
+        end
+
+        private def select_bug_sentinel?(node : ::Crystal::ASTNode) : Bool
+          node = node.expressions.first if node.is_a?(::Crystal::Expressions) && node.expressions.size == 1
+          return false unless node.is_a?(::Crystal::Call) && node.name == "raise" && node.global? && node.args.size == 1
+          message = node.args.first
+          message.is_a?(::Crystal::StringLiteral) && message.value.starts_with?("BUG")
         end
 
         private def build_select_arm(action : SelectAction, body_node : ::Crystal::ASTNode, value_name : String) : IR::NIR::Select::Arm

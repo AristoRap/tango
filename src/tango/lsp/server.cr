@@ -26,6 +26,8 @@ module Tango
         analysisRevision: Int64,
         edits: Array(DiagnosticFixEditToken))
       private alias LspTextEdit = NamedTuple(range: Position::LspRange, newText: String)
+      private alias LspDiagnosticLocation = NamedTuple(uri: String, range: Position::LspRange)
+      private alias LspRelatedDiagnostic = NamedTuple(location: LspDiagnosticLocation, message: String)
       private alias LspDiagnostic = NamedTuple(
         range: Position::LspRange,
         severity: Int32,
@@ -33,6 +35,7 @@ module Tango
         source: String,
         message: String,
         tags: Array(Int32),
+        relatedInformation: Array(LspRelatedDiagnostic),
         data: DiagnosticFixToken?)
 
       private record ResolvedPosition,
@@ -80,14 +83,14 @@ module Tango
           uri = doc["uri"].as_s
           text = doc["text"].as_s
           version = doc["version"]?.try(&.as_i)
-          @workspace.open(uri, uri_to_path(uri), text, version)
-          publish_diagnostics
+          document = @workspace.open(uri, uri_to_path(uri), text, version)
+          publish_diagnostics unless document.snapshot.diagnostics.empty?
         when "textDocument/didChange"
           uri = params["textDocument"]["uri"].as_s
           text = params["contentChanges"].as_a.last["text"].as_s
           version = params["textDocument"]["version"]?.try(&.as_i)
-          @workspace.change(uri, uri_to_path(uri), text, version)
-          publish_diagnostics
+          document = @workspace.change(uri, uri_to_path(uri), text, version)
+          publish_diagnostics unless document.snapshot.diagnostics.empty?
         when "textDocument/didClose"
           uri = params["textDocument"]["uri"].as_s
           @workspace.close(uri)
@@ -134,78 +137,6 @@ module Tango
       rescue ex
         JsonRpc.log(@log, "error handling #{message["method"]?}: #{ex.message}")
         respond(message["id"]?, nil) if message["id"]?
-      end
-
-      private def publish_diagnostics : Nil
-        grouped = {} of String => Array(NamedTuple(diagnostic: Diagnostic, index: Position::LineIndex))
-        seen = Set({String, String, String, Int32, Int32, Int32}).new
-
-        @workspace.root_documents.each do |document|
-          document.snapshot.diagnostics.each do |diagnostic|
-            path = diagnostic.file || document.path
-            file = document.snapshot.source.file?(path)
-            next unless file
-            key = {path, diagnostic.code, diagnostic.message, diagnostic.line, diagnostic.column, diagnostic.size}
-            next unless seen.add?(key)
-
-            uri = @workspace.uri_for_path(path) || path_to_uri(path)
-            grouped[uri] ||= [] of NamedTuple(diagnostic: Diagnostic, index: Position::LineIndex)
-            grouped[uri] << {diagnostic: diagnostic, index: Position::LineIndex.new(file.code)}
-          end
-        end
-
-        uris = Set(String).new
-        @workspace.documents.each_key { |uri| uris << uri }
-        @published_diagnostic_uris.each { |uri| uris << uri }
-        grouped.each_key { |uri| uris << uri }
-        uris.to_a.sort.each do |uri|
-          diagnostics = grouped[uri]?.try do |entries|
-            entries.map { |entry| to_lsp_diagnostic(entry[:diagnostic], entry[:index], uri) }
-          end || [] of LspDiagnostic
-          publish(uri, diagnostics, @workspace.document?(uri).try(&.version))
-        end
-        @published_diagnostic_uris = grouped.keys.to_set
-      end
-
-      private def to_lsp_diagnostic(d : Tango::Diagnostic, index : Position::LineIndex, uri : String) : LspDiagnostic
-        {
-          range:    index.range(d.line, d.column, d.size, @position_encoding),
-          severity: d.severity.warning? ? 2 : 1,
-          code:     d.code,
-          source:   "tango",
-          message:  d.message,
-          tags:     d.unnecessary ? [1] : [] of Int32, # 1 = Unnecessary (dimmed)
-          data:     diagnostic_fix_token(d.fix, uri),
-        }
-      end
-
-      private def diagnostic_fix_token(fix : Diagnostic::Fix?, uri : String) : DiagnosticFixToken?
-        return unless fix
-        document = @workspace.document?(uri)
-        return unless document
-        edits = fix.edits.map do |edit|
-          {
-            path:        edit.range.path,
-            startOffset: edit.range.start_offset,
-            endOffset:   edit.range.end_offset,
-            newText:     edit.new_text,
-          }
-        end
-        {
-          kind:             fix.kind.to_s,
-          title:            fix.title,
-          documentVersion:  document.version,
-          analysisRevision: document.analysis_revision,
-          edits:            edits,
-        }
-      end
-
-      private def publish(uri : String, diagnostics, version : Int32?) : Nil
-        if version
-          notify("textDocument/publishDiagnostics", {uri: uri, version: version, diagnostics: diagnostics})
-        else
-          notify("textDocument/publishDiagnostics", {uri: uri, diagnostics: diagnostics})
-        end
       end
 
       private def definition_result(params : JSON::Any)
@@ -688,7 +619,8 @@ module Tango
         lsp_character = position["character"].as_i
 
         column = document.line_index.tango_column(lsp_line, lsp_character, @position_encoding)
-        snapshot = @workspace.analysis_snapshot(document.path, uri)
+        snapshot = @workspace.analysis_snapshot?(document.path, uri)
+        return nil unless snapshot
         current_offset = document.source_line_index.byte_offset_at(lsp_line + 1, column)
         semantic_offset = @workspace.semantic_offset(document.path, current_offset, snapshot)
         return nil unless semantic_offset

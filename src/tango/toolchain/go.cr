@@ -135,8 +135,12 @@ module Tango
       private def self.execute_source(source : String, source_path : String, execution : Execution, output : Process::Stdio, error : Process::Stdio) : Result
         case prepared = prepare_execution(source, source_path, execution)
         in PreparedExecution
-          status = Process.run(prepared.toolchain.path, prepared.args, output: output, error: error, env: prepared.env)
-          Result.new(status.exit_code)
+          begin
+            status = Process.run(prepared.toolchain.path, prepared.args, output: output, error: error, env: prepared.env)
+            Result.new(status.exit_code)
+          rescue ex : File::Error
+            Result.new(1, [check(Diagnostics::CHECK_GO, "couldn't execute Go toolchain: #{ex.message}")])
+          end
         in Array(Diagnostic)
           Result.new(1, prepared)
         end
@@ -162,7 +166,11 @@ module Tango
       private def self.checked_toolchain : Resolution | Diagnostic
         case result = resolve
         in Resolution
-          prepare_cache
+          begin
+            prepare_cache
+          rescue ex : File::Error
+            return check(Diagnostics::CHECK_WORKSPACE, "couldn't prepare generated workspace: #{ex.message}")
+          end
 
           if go_version = version(result.path)
             unless meets_min?(go_version)
@@ -177,7 +185,7 @@ module Tango
       end
 
       private def self.write_main(source : String, source_path : String, formatter_path : String) : FormattedSource
-        main_path = Workspace::Layout.module_file(source_path)
+        main_path = Workspace::Layout.execution_module_file(source_path)
         formatted = format_source(formatter_path, source)
         return formatted unless formatted.success?
         rendered = formatted.source
@@ -186,6 +194,8 @@ module Tango
         Dir.mkdir_p(File.dirname(main_path))
         File.write(main_path, rendered)
         FormattedSource.new(main_path)
+      rescue ex : File::Error
+        FormattedSource.new(nil, [check(Diagnostics::CHECK_WORKSPACE, "couldn't write generated Go source: #{ex.message}", file: main_path)])
       end
 
       private def self.format_source(formatter_path : String, source : String) : FormattedSource

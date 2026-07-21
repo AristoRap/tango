@@ -483,6 +483,7 @@ module Tango
         getter detail : String?
         getter unnecessary : Bool
         getter range : RangeData?
+        getter related : Array(RelatedDiagnosticData)
         getter hints : Array(String)
         getter fix : DiagnosticFixData?
 
@@ -498,6 +499,7 @@ module Tango
           @detail = diagnostic.detail
           @unnecessary = diagnostic.unnecessary
           @range = diagnostic.range.try { |range| RangeData.new(range) }
+          @related = diagnostic.related.map { |range, message| RelatedDiagnosticData.new(range, message) }
           @hints = diagnostic.hints
           @fix = diagnostic.fix.try { |fix| DiagnosticFixData.new(fix) }
         end
@@ -515,9 +517,24 @@ module Tango
             @detail,
             @unnecessary,
             @range.try(&.to_range),
+            @related.map(&.to_related),
             hints: @hints,
             fix: @fix.try(&.to_fix)
           )
+        end
+      end
+
+      class RelatedDiagnosticData
+        include JSON::Serializable
+        getter range : RangeData
+        getter message : String
+
+        def initialize(range : Source::Range, @message : String)
+          @range = RangeData.new(range)
+        end
+
+        def to_related : {Source::Range, String}
+          {@range.to_range, @message}
         end
       end
 
@@ -657,7 +674,8 @@ module Tango
 
         def to_snapshot : Compiler::Snapshot
           source_files = @files.map(&.to_file)
-          entrypoint = source_files.find { |file| file.path == @entrypoint } || source_files.last
+          entrypoint = source_files.find { |file| file.path == @entrypoint }
+          raise ArgumentError.new("analysis entrypoint #{@entrypoint.inspect} is absent from files") unless entrypoint
           source = Source::CompilationUnit.new(
             source_files,
             entrypoint,

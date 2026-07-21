@@ -7,6 +7,7 @@ describe Tango::Lsp::Document do
     first = document.snapshot
 
     document.snapshot.same?(first).should be_true
+    document.semantic_snapshot.should be_nil
     first.target_ir.should be_nil
     first.go_source.should be_nil
 

@@ -71,6 +71,7 @@ describe "editor navigation and symbols" do
     changed_token = broken.sub("answer(1)", "ansXYZwer(1)")
     messages = EditorNavigationSpecSupport.run([
       {jsonrpc: "2.0", method: "textDocument/didOpen", params: {textDocument: {uri: uri, text: valid, version: 1}}},
+      {jsonrpc: "2.0", id: 30, method: "textDocument/semanticTokens/full", params: {textDocument: {uri: uri}}},
       {jsonrpc: "2.0", method: "textDocument/didChange", params: {textDocument: {uri: uri, version: 2}, contentChanges: [{text: broken}]}},
       {jsonrpc: "2.0", id: 3, method: "textDocument/definition", params: {textDocument: {uri: uri}, position: {line: 4, character: 7}}},
       {jsonrpc: "2.0", method: "textDocument/didChange", params: {textDocument: {uri: uri, version: 3}, contentChanges: [{text: changed_token}]}},

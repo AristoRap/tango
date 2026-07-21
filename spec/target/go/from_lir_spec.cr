@@ -17,6 +17,16 @@ private def go_mutex_type(type : Tango::IR::Type) : Tango::IR::ExternalType
 end
 
 describe Tango::Target::Go::FromLIR do
+  it "fails loud when an unsupported value reaches target translation" do
+    program = Tango::IR::LIR::Program.new([
+      Tango::IR::LIR::Discard.new(Tango::IR::LIR::UnsupportedValue.new("missing lowering")),
+    ] of Tango::IR::LIR::Stmt)
+
+    expect_raises(ArgumentError, "unsupported LIR value: missing lowering") do
+      Tango::Target::Go::FromLIR.translate(program)
+    end
+  end
+
   it "emits both numeric sleep calls through one imported runtime helper" do
     target = Tango::IR::LIR::ExternalTarget.new("go", nil, "tangoSleep")
     program = Tango::IR::LIR::Program.new([
