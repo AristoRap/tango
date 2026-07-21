@@ -39,14 +39,15 @@ describe "architecture audit regressions" do
     ArchitectureRegressions.read("src/tango/lsp/document.cr").should contain("Tango.editor_surface_snapshot")
   end
 
-  it "does not infer editor root ownership from graph size" do
+  it "derives disk root ownership only from explicit manifest entrypoints" do
     workspace = ArchitectureRegressions.read("src/tango/lsp/workspace.cr")
     ownership = ArchitectureRegressions.read("src/tango/lsp/root_ownership_index.cr")
     workspace.should_not match(/source\.files\.size\s*>/)
     workspace.should_not contain(".max_by?")
     workspace.should_not match(/rescue\s*\n\s*next/)
-    workspace.lines.count { |line| line.includes?("Dir.glob(File.join(root") }.should eq(1)
-    ownership.lines.count { |line| line.includes?("Dir.glob(File.join(root") }.should eq(1)
+    ownership.should_not contain("Dir.glob")
+    ownership.should contain(%(MANIFEST_NAME = "tango.json"))
+    ownership.should contain("manifest_entrypoints(root)")
     ownership.should contain("candidates.size == 1")
   end
 
