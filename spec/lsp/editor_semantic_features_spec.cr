@@ -214,7 +214,7 @@ describe "editor semantic features" do
     hints.first["position"]["line"].as_i.should eq(0)
     hints.first["position"]["character"].as_i.should eq(6)
     EditorSemanticSpecSupport.response(messages, 10).raw.should be_nil
-    EditorSemanticSpecSupport.response(messages, 11)["contents"]["value"].as_s.should eq("values : Array(Int32)")
+    EditorSemanticSpecSupport.response(messages, 11)["contents"]["value"].as_s.should eq("```tango\nvalues : Array(Int32)\n```")
     tokens = EditorSemanticSpecSupport.decode_tokens(EditorSemanticSpecSupport.response(messages, 12)["data"].as_a)
     tokens.select { |token| token[:line].zero? }.should eq([
       {line: 0, start: 0, length: 6, type: 3, modifiers: 3},

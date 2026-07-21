@@ -300,7 +300,7 @@ module Tango
         hover = Compiler::Editor::Hover.at(resolved.snapshot, resolved.document.path, resolved.line, resolved.column)
         return nil unless hover
 
-        contents = {kind: "plaintext", value: Compiler::Editor::HoverText.render(hover)}
+        contents = {kind: "markdown", value: Compiler::Editor::HoverMarkdown.render(hover)}
         if range = current_lsp_range(hover.range, resolved.snapshot)
           {
             contents: contents,

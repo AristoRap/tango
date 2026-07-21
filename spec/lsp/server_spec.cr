@@ -72,8 +72,8 @@ describe Tango::Lsp::Server do
 
     receiver_hover = responses.find! { |message| message["id"]?.try(&.as_i) == 30 }["result"]
     method_hover = responses.find! { |message| message["id"]?.try(&.as_i) == 31 }["result"]
-    receiver_hover["contents"]["value"].as_s.should eq("class File")
-    method_hover["contents"]["value"].as_s.should eq("File.read(String) : String")
+    receiver_hover["contents"]["value"].as_s.should eq("```tango\nclass File\n```")
+    method_hover["contents"]["value"].as_s.should eq("```tango\ndef File.read(path : String) : String\n```")
   end
 
   it "expands unsaved wildcard dependencies through the shared workspace resolver" do
@@ -126,9 +126,9 @@ describe Tango::Lsp::Server do
     parameter = responses.find! { |message| message["id"]?.try(&.as_i) == 10 }["result"]
     scale = responses.find! { |message| message["id"]?.try(&.as_i) == 11 }["result"]
     sum = responses.find! { |message| message["id"]?.try(&.as_i) == 12 }["result"]
-    parameter["contents"]["value"].as_s.should eq("point : Point")
-    scale["contents"]["value"].as_s.should contain("scale(Int32) : Int32")
-    sum["contents"]["value"].as_s.should contain("Point#sum : Int32")
+    parameter["contents"]["value"].as_s.should eq("```tango\npoint : Point\n```")
+    scale["contents"]["value"].as_s.should contain("def scale(value : Int32) : Int32")
+    sum["contents"]["value"].as_s.should contain("def Point#sum : Int32")
   end
 
   it "resolves an unsaved dependency with the shared local-path contract" do
@@ -403,8 +403,8 @@ describe Tango::Lsp::Server do
 
     at_sigil = responses.find! { |message| message["id"]?.try(&.as_i) == 2 }["result"]
     at_name = responses.find! { |message| message["id"]?.try(&.as_i) == 3 }["result"]
-    at_sigil["contents"]["value"].as_s.should eq("x : Int32")
-    at_name["contents"]["value"].as_s.should eq("x : Int32")
+    at_sigil["contents"]["value"].as_s.should eq("```tango\nx : Int32\n```")
+    at_name["contents"]["value"].as_s.should eq("```tango\nx : Int32\n```")
     at_name["range"]["start"]["character"].as_i.should eq(4)
     at_name["range"]["end"]["character"].as_i.should eq(6)
   end
@@ -419,7 +419,7 @@ describe Tango::Lsp::Server do
     ])
 
     result = responses.find! { |message| message["id"]?.try(&.as_i) == 2 }["result"]
-    result["contents"]["value"].as_s.should eq("x : (Int32 | Nil)")
+    result["contents"]["value"].as_s.should eq("```tango\nx : (Int32 | Nil)\n```")
   end
 
   it "resolves UTF-16 positions after an astral character through hover and definition" do
@@ -432,7 +432,7 @@ describe Tango::Lsp::Server do
     ])
 
     hover = responses.find! { |message| message["id"]?.try(&.as_i) == 2 }["result"]
-    hover["contents"]["value"].as_s.should eq("value : Int32")
+    hover["contents"]["value"].as_s.should eq("```tango\nvalue : Int32\n```")
 
     definition = responses.find! { |message| message["id"]?.try(&.as_i) == 3 }["result"]
     definition["range"]["start"]["line"].as_i.should eq(0)

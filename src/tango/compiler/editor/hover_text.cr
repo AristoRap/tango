@@ -16,7 +16,7 @@ module Tango
             when Hover::BindingSubject
               "#{subject.name} : #{subject.type.to_semantic_s}"
             when Hover::CallableSubject
-              parameters = subject.parameter_types.empty? ? "" : "(#{subject.parameter_types.map(&.to_semantic_s).join(", ")})"
+              parameters = subject.parameters.empty? ? "" : "(#{subject.parameter_types.map(&.to_semantic_s).join(", ")})"
               separator = subject.kind.in?(IR::NIR::CallableKind::ClassMethod, IR::NIR::CallableKind::Constructor) ? "." : "#"
               owner = subject.owner.try { |type| "#{type.to_semantic_s}#{separator}" } || ""
               suffix = subject.return_type.try { |type| " : #{type.to_semantic_s}" } || ""

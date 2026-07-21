@@ -14,9 +14,13 @@ module Tango
         record CallableSubject < Subject,
           owner : IR::Type?,
           name : String,
-          parameter_types : Array(IR::Type),
+          parameters : Array(Index::Parameter),
           return_type : IR::Type?,
-          kind : IR::NIR::CallableKind
+          kind : IR::NIR::CallableKind do
+          def parameter_types : Array(IR::Type)
+            parameters.map(&.type)
+          end
+        end
         record ProcSubject < Subject, name : String, parameter_types : Array(IR::Type), return_type : IR::Type?
 
         enum Note
@@ -46,8 +50,12 @@ module Tango
               # Only the callee token uses call-site signature data; receiver
               # tokens keep their own declarations (`Point` vs `new`).
               if site.name_span == reference.range
+                parameters = site.argument_types.map_with_index do |type, index|
+                  name = declaration.try(&.signature).try { |signature| signature.parameters[index]?.try(&.name) } || ""
+                  Index::Parameter.new(name, type)
+                end
                 return Result.new(
-                  CallableSubject.new(site.owner, site.name, site.argument_types, site.return_type, site.kind),
+                  CallableSubject.new(site.owner, site.name, parameters, site.return_type, site.kind),
                   reference.range,
                   reference.declaration,
                   documentation: declaration.try(&.documentation)
@@ -85,7 +93,7 @@ module Tango
           when .function?, .method?, .constructor?
             signature = declaration.signature
             return nil unless signature
-            CallableSubject.new(signature.owner, declaration.name, signature.parameters.map(&.type), signature.return_type, signature.kind)
+            CallableSubject.new(signature.owner, declaration.name, signature.parameters, signature.return_type, signature.kind)
           when .block_parameter?
             signature = declaration.signature
             return nil unless signature

@@ -60,6 +60,12 @@ private def hover_text(snapshot, path : String, line : Int32, column : Int32)
   end
 end
 
+private def hover_markdown(snapshot, path : String, line : Int32, column : Int32)
+  Tango::Compiler::Editor::Hover.at(snapshot, path, line, column).try do |hover|
+    Tango::Compiler::Editor::HoverMarkdown.render(hover)
+  end
+end
+
 describe Tango::Compiler::Editor::Hover do
   it "renders integer-system methods through the generic method-site projection" do
     source = "puts(1_u64 & 3_u64)\nputs(\"42\".to_u16)"
@@ -237,6 +243,15 @@ describe Tango::Compiler::Editor::Hover do
 
     # `ch` inside `spawn { ch.send(1 + 2) }` (line 2, column 9).
     hover_text(snapshot, path, 2, 9).should eq("ch : Channel(Int32) (captured by a goroutine)")
+    hover_markdown(snapshot, path, 2, 9).should eq(<<-MARKDOWN.chomp)
+      ```tango
+      ch : Channel(Int32)
+      ```
+
+      ---
+
+      *Captured by a goroutine.*
+      MARKDOWN
     # `ch` at its declaration `ch = Channel(Int32).new` (line 1, column 1) — the
     # same captured variable, so the note follows the local, not the occurrence.
     hover_text(snapshot, path, 1, 1).should eq("ch : Channel(Int32) (captured by a goroutine)")

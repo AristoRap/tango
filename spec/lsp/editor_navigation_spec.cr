@@ -146,7 +146,14 @@ describe "editor navigation and symbols" do
     ])
 
     hover = EditorNavigationSpecSupport.response(messages, 8)
-    hover["contents"]["value"].as_s.should eq("add_one(Int32) : Int32\n\nAdds one to the supplied value.")
+    hover["contents"]["kind"].as_s.should eq("markdown")
+    hover["contents"]["value"].as_s.should eq(<<-MARKDOWN.chomp)
+      ```tango
+      def add_one(value : Int32) : Int32
+      ```
+
+      Adds one to the supplied value.
+      MARKDOWN
   end
 
   it "advertises exactly the implemented request capabilities" do
