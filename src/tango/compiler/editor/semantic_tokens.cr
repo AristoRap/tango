@@ -69,12 +69,12 @@ module Tango
 
         private def semantic_token_kind(kind : SymbolKind) : SemanticTokenKind
           case kind
-          in .class?, .enum?                            then SemanticTokenKind::Class
+          in .class?, .struct?, .enum?, .type_alias?    then SemanticTokenKind::Class
           in .function?                                 then SemanticTokenKind::Function
           in .method?, .constructor?, .block_parameter? then SemanticTokenKind::Method
           in .local?                                    then SemanticTokenKind::Variable
           in .parameter?, .block_argument?              then SemanticTokenKind::Parameter
-          in .field?, .enum_member?                     then SemanticTokenKind::Property
+          in .field?, .enum_member?, .constant?         then SemanticTokenKind::Property
           end
         end
 

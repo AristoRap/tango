@@ -13,8 +13,10 @@ module Tango
         # name rather than the `def` keyword. Nil when unavailable.
         getter name_span : Source::Range?
         getter capability_witnesses : Array(IR::CapabilityConformance)
+        getter namespace_path : Array(String)
+        getter return_type_reference : TypeAliasReference?
 
-        def initialize(id : NodeId, @name : String, @params : Array(Param), @body : Block, @return_type : IR::Type?, span : Source::Range?, @block_param : BlockParam? = nil, @name_span : Source::Range? = nil, @owner : IR::Type? = nil, @callable_kind : CallableKind = CallableKind::Function, @capability_witnesses : Array(IR::CapabilityConformance) = [] of IR::CapabilityConformance)
+        def initialize(id : NodeId, @name : String, @params : Array(Param), @body : Block, @return_type : IR::Type?, span : Source::Range?, @block_param : BlockParam? = nil, @name_span : Source::Range? = nil, @owner : IR::Type? = nil, @callable_kind : CallableKind = CallableKind::Function, @capability_witnesses : Array(IR::CapabilityConformance) = [] of IR::CapabilityConformance, @namespace_path : Array(String) = [] of String, @return_type_reference : TypeAliasReference? = nil)
           super(id, span)
         end
       end

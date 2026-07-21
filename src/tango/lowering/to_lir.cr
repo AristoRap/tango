@@ -70,6 +70,7 @@ module Tango
         function_names = Set(String).new
         types = [] of IR::LIR::StructType
         enums = [] of IR::LIR::EnumType
+        globals = [] of IR::LIR::Global
         body = [] of IR::LIR::Stmt
 
         program.body.each do |stmt|
@@ -88,9 +89,23 @@ module Tango
             types << lower_class(stmt, plans)
           when IR::NIR::Enum
             enums << lower_enum(stmt, plans)
+          when IR::NIR::Namespace, IR::NIR::Constant, IR::NIR::TypeAlias
+            # Compile-time declarations are collected through their owned
+            # namespace tree below; they are not entrypoint statements.
           else
             body << lower_stmt(stmt, facts, plans)
           end
+        end
+
+        declarations(program.body).each do |declaration|
+          next unless declaration.is_a?(IR::NIR::Constant)
+          plan = plans.constants[declaration.id]
+          globals << IR::LIR::Global.new(
+            plan.target_name,
+            plan.type,
+            lower_operand(declaration.value, declaration.type, facts, plans),
+            loc(declaration.span)
+          )
         end
 
         # `.new` sites registered a constructor as they were lowered; mint one
@@ -117,7 +132,17 @@ module Tango
         end
 
         uncaught_exception = plans.uncaught_exception || raise "missing uncaught exception plan"
-        IR::LIR::Program.new(body, functions, types, unions, arrays, hashes, facts.external_types.values, conversions, uncaught_exception, enums)
+        IR::LIR::Program.new(body, functions, types, unions, arrays, hashes, facts.external_types.values, conversions, uncaught_exception, enums, globals)
+      end
+
+      private def declarations(nodes : Array(IR::NIR::Stmt), into = [] of IR::NIR::Stmt) : Array(IR::NIR::Stmt)
+        nodes.each do |node|
+          into << node
+          if namespace = node.as?(IR::NIR::Namespace)
+            declarations(namespace.body.body, into)
+          end
+        end
+        into
       end
 
       private def lower_enum(node : IR::NIR::Enum, plans : Planning::Plans::Table) : IR::LIR::EnumType
@@ -387,7 +412,7 @@ module Tango
           else
             IR::LIR::Discard.new(lower_value(stmt, facts, plans), loc(stmt.span))
           end
-        when IR::NIR::Local, IR::NIR::Literal, IR::NIR::EnumMember, IR::NIR::Interpolation, IR::NIR::StringSplit, IR::NIR::Size, IR::NIR::StringCharAt, IR::NIR::StringToFloat, IR::NIR::StringToInteger, IR::NIR::New, IR::NIR::ChannelNew, IR::NIR::MutexNew,
+        when IR::NIR::Local, IR::NIR::Literal, IR::NIR::EnumMember, IR::NIR::ConstantReference, IR::NIR::Interpolation, IR::NIR::StringSplit, IR::NIR::Size, IR::NIR::StringCharAt, IR::NIR::StringToFloat, IR::NIR::StringToInteger, IR::NIR::New, IR::NIR::ChannelNew, IR::NIR::MutexNew,
              IR::NIR::ArrayNew, IR::NIR::ArrayBuild, IR::NIR::ArrayGet, IR::NIR::ArraySet, IR::NIR::ArrayPush,
              IR::NIR::HashNew, IR::NIR::HashGet, IR::NIR::HashSet, IR::NIR::HashFetch, IR::NIR::HashHasKey, IR::NIR::HashKeyAt,
              IR::NIR::Not, IR::NIR::TypeTest, IR::NIR::Cast
@@ -499,6 +524,10 @@ module Tango
           IR::LIR::StringConst.new(stmt.value)
         when IR::NIR::EnumMember
           IR::LIR::EnumConst.new(stmt.enum_type, stmt.name)
+        when IR::NIR::ConstantReference
+          reference = facts.references[stmt.id]?.as?(Analysis::Facts::ConstantReference)
+          plan = reference.try { |edge| plans.constants[edge.declaration]? }
+          plan ? IR::LIR::GlobalRef.new(plan.target_name) : IR::LIR::UnsupportedValue.new("unresolved constant #{stmt.path.join("::")}", loc(stmt.span))
         when IR::NIR::Interpolation
           lower_interpolation(stmt, facts, plans)
         when IR::NIR::StringSplit

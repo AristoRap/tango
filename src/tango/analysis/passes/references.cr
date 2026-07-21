@@ -47,6 +47,17 @@ module Tango
             table.references[node.id] = Facts::FieldReference.new(node.owner, node.name)
           when IR::NIR::EnumMember
             table.references[node.id] = Facts::EnumMemberReference.new(node.enum_type, node.name)
+          when IR::NIR::ConstantReference
+            if definition = table.constants[node.path]?
+              table.references[node.id] = Facts::ConstantReference.new(definition.declaration, node.path)
+            end
+          when IR::NIR::Constant
+            visit(node.value, Scope.new(nil), table)
+            return
+          when IR::NIR::TypeAliasReference
+            if definition = table.type_aliases[node.path]?
+              table.references[node.id] = Facts::TypeAliasReference.new(definition.declaration, node.path)
+            end
           when IR::NIR::Local
             # A Local reached here is a read — assignment targets are consumed by
             # the Assign case, which never recurses into its target as a read.
@@ -58,6 +69,7 @@ module Tango
             inner = Scope.new(nil)
             node.params.each { |param| declare(inner, param.name, param.id) }
             node.block_param.try { |block_param| declare(inner, block_param.name, block_param.id) }
+            node.return_type_reference.try { |reference| visit(reference, inner, table) }
             visit(node.body, inner, table)
             return
           when IR::NIR::BlockLiteral

@@ -28,6 +28,16 @@ module Tango
         end
       end
 
+      class Global
+        getter name : String
+        getter type : IR::Type
+        getter value : Value
+        getter loc : SourceLoc?
+
+        def initialize(@name : String, @type : IR::Type, @value : Value, @loc : SourceLoc? = nil)
+        end
+      end
+
       # A struct type declaration hoisted from a class layout. Neither a Value
       # nor a Stmt — a top-level declaration, like Func. `reference` carries the
       # planned representation: a reference type is spelled and allocated as a
@@ -126,8 +136,9 @@ module Tango
         getter external_types : Array(IR::ExternalType)
         getter conversions : Array(UnionConversion)
         getter enums : Array(EnumType)
+        getter globals : Array(Global)
 
-        def initialize(@body : Array(Stmt), @functions : Array(Func) = [] of Func, @types : Array(StructType) = [] of StructType, @unions : Array(UnionType) = [] of UnionType, @arrays : Array(ArrayType) = [] of ArrayType, @hashes : Array(HashType) = [] of HashType, @external_types : Array(IR::ExternalType) = [] of IR::ExternalType, @conversions : Array(UnionConversion) = [] of UnionConversion, @uncaught_exception : IR::UncaughtExceptionStrategy = IR::UncaughtExceptionStrategy::CrystalStyle, @enums : Array(EnumType) = [] of EnumType)
+        def initialize(@body : Array(Stmt), @functions : Array(Func) = [] of Func, @types : Array(StructType) = [] of StructType, @unions : Array(UnionType) = [] of UnionType, @arrays : Array(ArrayType) = [] of ArrayType, @hashes : Array(HashType) = [] of HashType, @external_types : Array(IR::ExternalType) = [] of IR::ExternalType, @conversions : Array(UnionConversion) = [] of UnionConversion, @uncaught_exception : IR::UncaughtExceptionStrategy = IR::UncaughtExceptionStrategy::CrystalStyle, @enums : Array(EnumType) = [] of EnumType, @globals : Array(Global) = [] of Global)
         end
       end
     end

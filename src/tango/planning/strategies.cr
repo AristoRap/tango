@@ -1,4 +1,5 @@
 require "./strategies/monomorphize"
+require "./strategies/declarations"
 require "./strategies/calls"
 require "./strategies/capabilities"
 require "./strategies/layout"

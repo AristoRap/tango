@@ -10,8 +10,11 @@ module Tango
       class Index
         enum SymbolKind
           Class
+          Struct
           Enum
           EnumMember
+          Constant
+          TypeAlias
           Function
           Method
           Constructor
@@ -263,7 +266,7 @@ module Tango
             end
           elsif family.domain == "type:global"
             @syntax_surface.declarations.any? do |declaration|
-              (declaration.kind.class? || declaration.kind.module?) && declaration.name == new_name
+              (declaration.kind.class? || declaration.kind.struct? || declaration.kind.module?) && declaration.name == new_name
             end
           else
             false
@@ -324,6 +327,10 @@ module Tango
             add_class(stmt)
           when IR::NIR::Enum
             add_enum(stmt)
+          when IR::NIR::Constant
+            add_constant(stmt)
+          when IR::NIR::TypeAlias
+            add_type_alias(stmt)
           when IR::NIR::Def
             add_def(stmt, facts)
             return
@@ -442,7 +449,7 @@ module Tango
             "member:#{declaration.signature.try(&.owner).try(&.to_s)}"
           when .field?
             "member:#{field_owner(declaration)}"
-          when .class?
+          when .class?, .struct?
             "type:global"
           else
             "lexical:#{declaration.range.path}:#{lexical_scope(declaration)}"
@@ -462,7 +469,7 @@ module Tango
 
         private def field_owner(declaration : Declaration) : String
           @declarations.find do |candidate|
-            candidate.kind.class? && candidate.id.declaration == declaration.id.declaration
+            (candidate.kind.class? || candidate.kind.struct?) && candidate.id.declaration == declaration.id.declaration
           end.try(&.name).to_s
         end
 
@@ -510,32 +517,6 @@ module Tango
           )
         end
 
-        private def add_class(stmt : IR::NIR::Class) : Nil
-          range = declaration_range(stmt)
-          return unless range
-          class_id = SymbolId.new(stmt.id, SymbolKind::Class)
-          declaration = Declaration.new(class_id, stmt.name, range)
-          add_declaration(declaration)
-          stmt.fields.each do |field|
-            field_range = stmt.initializers.find { |initializer| initializer.name == field.name }.try(&.name_span) || range
-            add_declaration(
-              Declaration.new(SymbolId.new(stmt.id, SymbolKind::Field, field.name), field.name, field_range, field.type)
-            )
-          end
-        end
-
-        private def add_enum(stmt : IR::NIR::Enum) : Nil
-          range = declaration_range(stmt)
-          return unless range
-          enum_id = SymbolId.new(stmt.id, SymbolKind::Enum)
-          add_declaration(Declaration.new(enum_id, stmt.name, range, stmt.type))
-          @enums_by_type[stmt.type] = enum_id
-          stmt.members.each do |member|
-            member_range = member.name_span || range
-            add_declaration(Declaration.new(SymbolId.new(stmt.id, SymbolKind::EnumMember, member.name), member.name, member_range, stmt.type))
-          end
-        end
-
         private def add_binding(id : NodeId, name : String, kind : SymbolKind, type : IR::Type?, range : Source::Range) : Nil
           add_declaration(Declaration.new(SymbolId.new(id, kind), name, range, type))
         end
@@ -554,7 +535,7 @@ module Tango
           @declarations << declaration
           @declarations_by_id[declaration.id] = declaration
           @symbols_by_node[declaration.id.declaration] = declaration.id unless declaration.id.member
-          @classes_by_name[declaration.name] = declaration.id if declaration.kind.class?
+          @classes_by_name[declaration.name] = declaration.id if declaration.kind.class? || declaration.kind.struct?
         end
 
         private def import_semantic_node(semantic : SemanticNode) : Nil
@@ -578,6 +559,10 @@ module Tango
                 @enums_by_type[reference.enum_type]?.try do |owner|
                   SymbolId.new(owner.declaration, SymbolKind::EnumMember, reference.member)
                 end
+              when Analysis::Facts::ConstantReference
+                @symbols_by_node[reference.declaration]?
+              when Analysis::Facts::TypeAliasReference
+                @symbols_by_node[reference.declaration]?
               end
             node = @nodes[node_id]?
             add_reference(node_id, target, source_name_range(node) || node.try(&.span))

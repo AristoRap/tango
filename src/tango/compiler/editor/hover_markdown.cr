@@ -24,10 +24,16 @@ module Tango
           case subject
           when Hover::ClassSubject
             "class #{subject.name}"
+          when Hover::StructSubject
+            "struct #{subject.name}"
           when Hover::EnumSubject
             "enum #{subject.name}"
           when Hover::EnumMemberSubject
             "#{subject.owner.to_semantic_s}::#{subject.name} : #{subject.owner.to_semantic_s}"
+          when Hover::ConstantSubject
+            "const #{subject.name} : #{subject.type.to_semantic_s}"
+          when Hover::TypeAliasSubject
+            "alias #{subject.name} = #{subject.target.to_semantic_s}"
           when Hover::BindingSubject
             "#{subject.name} : #{subject.type.to_semantic_s}"
           when Hover::CallableSubject

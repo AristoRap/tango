@@ -21,6 +21,27 @@ module Tango
             definition.members.each { |member| io << " (" << member.name << '=' << member.value << ')' }
             io << '\n'
           end
+          facts.namespaces.each do |id, definition|
+            io << id << " namespace " << definition.path.join("::")
+            definition.parent.try { |parent| io << " parent=" << parent.join("::") }
+            SourceLocations.append(io, locations[id]?)
+            io << '\n'
+          end
+          facts.namespace_owners.each do |id, path|
+            io << id << " namespace_owner " << path.join("::")
+            SourceLocations.append(io, locations[id]?)
+            io << '\n'
+          end
+          facts.constants.each_value do |definition|
+            io << definition.declaration << " constant " << definition.path.join("::") << " : " << definition.type
+            SourceLocations.append(io, locations[definition.declaration]?)
+            io << '\n'
+          end
+          facts.type_aliases.each_value do |definition|
+            io << definition.declaration << " type_alias " << definition.path.join("::") << " = " << definition.target
+            SourceLocations.append(io, locations[definition.declaration]?)
+            io << '\n'
+          end
           facts.external_types.each do |type, binding|
             io << type << " external_type " << binding.binding.language << " " << binding.shape
             binding.binding.package_name.try { |package_name| io << " package=" << package_name }
@@ -82,6 +103,10 @@ module Tango
               io << id << " local_ref " << reference.declaration
             when Analysis::Facts::EnumMemberReference
               io << id << " enum_member_ref " << reference.enum_type << "::" << reference.member
+            when Analysis::Facts::ConstantReference
+              io << id << " constant_ref " << reference.path.join("::") << " -> " << reference.declaration
+            when Analysis::Facts::TypeAliasReference
+              io << id << " type_alias_ref " << reference.path.join("::") << " -> " << reference.declaration
             end
             SourceLocations.append(io, locations[id]?)
             io << '\n'

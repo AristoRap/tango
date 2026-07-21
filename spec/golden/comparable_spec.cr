@@ -36,4 +36,10 @@ describe "Comparable capability" do
     result.diagnostics.should be_empty
     output.to_s.should eq(File.read("spec/golden/comparable.stdout"))
   end
+
+  it "preserves value-struct identity in hover presentation" do
+    hover = expect_present(Tango::Compiler::Editor::Hover.at(snapshot, source_path, 5, 8))
+    Tango::Compiler::Editor::HoverText.render(hover).should eq("struct Score")
+    Tango::Compiler::Editor::HoverMarkdown.render(hover).should contain("struct Score")
+  end
 end

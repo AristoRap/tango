@@ -29,15 +29,16 @@ module Tango
         base = node.class.name.split("::").last
 
         case node
-        when IR::NIR::IntLiteral    then "#{base} #{node.value}"
-        when IR::NIR::FloatLiteral  then "#{base} #{node.value}"
-        when IR::NIR::StringLiteral then "#{base} #{node.value.inspect}"
-        when IR::NIR::BoolLiteral   then "#{base} #{node.value}"
-        when IR::NIR::Local         then "#{base} #{node.name}"
-        when IR::NIR::ClassRef      then "#{base} #{node.name}"
-        when IR::NIR::EnumMember    then "#{base} #{node.enum_type}::#{node.name}"
-        when IR::NIR::InstanceVar   then "#{base} @#{node.name} of #{node.owner}"
-        when IR::NIR::New           then "#{base} #{node.class_name}"
+        when IR::NIR::IntLiteral        then "#{base} #{node.value}"
+        when IR::NIR::FloatLiteral      then "#{base} #{node.value}"
+        when IR::NIR::StringLiteral     then "#{base} #{node.value.inspect}"
+        when IR::NIR::BoolLiteral       then "#{base} #{node.value}"
+        when IR::NIR::Local             then "#{base} #{node.name}"
+        when IR::NIR::ClassRef          then "#{base} #{node.name}"
+        when IR::NIR::EnumMember        then "#{base} #{node.enum_type}::#{node.name}"
+        when IR::NIR::ConstantReference then "#{base} #{node.path.join("::")}"
+        when IR::NIR::InstanceVar       then "#{base} @#{node.name} of #{node.owner}"
+        when IR::NIR::New               then "#{base} #{node.class_name}"
         when IR::NIR::Param
           if type = node.type
             "#{base} #{node.name} : #{type}"
@@ -109,8 +110,12 @@ module Tango
         when IR::NIR::Enum
           members = node.members.map { |member| "#{member.name}=#{member.value}" }.join(", ")
           "#{base} #{node.name} : #{node.base_type} { #{members} }"
-        when IR::NIR::UnsupportedExpr then "#{base} #{node.crystal_node}"
-        else                               base
+        when IR::NIR::Namespace          then "#{base} #{node.path.join("::")}"
+        when IR::NIR::TypeAlias          then "#{base} #{node.path.join("::")} = #{node.target}"
+        when IR::NIR::TypeAliasReference then "#{base} #{node.path.join("::")} = #{node.target}"
+        when IR::NIR::Constant           then "#{base} #{node.path.join("::")} : #{node.type}"
+        when IR::NIR::UnsupportedExpr    then "#{base} #{node.crystal_node}"
+        else                                  base
         end
       end
 

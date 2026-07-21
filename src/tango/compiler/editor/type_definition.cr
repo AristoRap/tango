@@ -41,7 +41,7 @@ module Tango
 
         private def self.declaration_type(declaration : Index::Declaration?) : IR::Type?
           return nil unless declaration
-          return IR::Type.klass(declaration.name) if declaration.kind.class?
+          return IR::Type.klass(declaration.name) if declaration.kind.class? || declaration.kind.struct?
           declaration.type || declaration.signature.try(&.return_type)
         end
       end

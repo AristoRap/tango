@@ -34,6 +34,15 @@ module Tango
             repr.members.each { |member| io << " (" << member.name << '=' << member.value << " -> " << member.target_name << ')' }
             io << '\n'
           end
+          plans.namespaces.each_value do |plan|
+            io << "namespace " << plan.path.join("::") << " target=" << plan.target_prefix << '\n'
+          end
+          plans.type_aliases.each_value do |plan|
+            io << "type_alias " << plan.path.join("::") << " = " << plan.target << '\n'
+          end
+          plans.constants.each_value do |plan|
+            io << "constant " << plan.path.join("::") << " target=" << plan.target_name << " type=" << plan.type << '\n'
+          end
           plans.equalities.each do |id, strategy|
             io << id << " equality " << strategy
             SourceLocations.append(io, locations[id]?)

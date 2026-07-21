@@ -54,6 +54,8 @@ module Tango
               IR::NIR::ClassRef.new(id, text(object, "name", location), type, span, optional_range(object, "name_span", location))
             when "enum_member"
               IR::NIR::EnumMember.new(id, required_type(object, "enum_type", location), text(object, "name", location), type, span, optional_range(object, "name_span", location))
+            when "constant_reference"
+              IR::NIR::ConstantReference.new(id, string_array(object, "path", location), type, span, optional_range(object, "name_span", location))
             when "instance_var"
               IR::NIR::InstanceVar.new(id, text(object, "name", location), text(object, "owner", location), type, span, optional_range(object, "name_span", location))
             when "param"
@@ -303,6 +305,39 @@ module Tango
                 span,
                 optional_range(object, "name_span", location)
               )
+            when "namespace"
+              IR::NIR::Namespace.new(
+                id,
+                string_array(object, "path", location),
+                block(object, "body", location),
+                span,
+                optional_range(object, "name_span", location)
+              )
+            when "type_alias"
+              IR::NIR::TypeAlias.new(
+                id,
+                string_array(object, "path", location),
+                required_type(object, "target", location),
+                span,
+                optional_range(object, "name_span", location)
+              )
+            when "type_alias_reference"
+              IR::NIR::TypeAliasReference.new(
+                id,
+                string_array(object, "path", location),
+                required_type(object, "target", location),
+                span,
+                optional_range(object, "name_span", location)
+              )
+            when "constant"
+              IR::NIR::Constant.new(
+                id,
+                string_array(object, "path", location),
+                expr(object, "value", location),
+                required_type(object, "type", location),
+                span,
+                optional_range(object, "name_span", location)
+              )
             when "def"
               IR::NIR::Def.new(
                 id,
@@ -315,7 +350,9 @@ module Tango
                 optional_range(object, "name_span", location),
                 optional_type(object, "owner", location),
                 Value.parse_enum(IR::NIR::CallableKind, field(object, "callable_kind", location), "#{location}.callable_kind"),
-                read_conformances(object, "capability_witnesses", location)
+                read_conformances(object, "capability_witnesses", location),
+                string_array(object, "namespace_path", location),
+                optional_node(object, "return_type_reference", location) { |node| as_type(node, IR::NIR::TypeAliasReference, "#{location}.return_type_reference") }
               )
             when "while"
               IR::NIR::While.new(id, expr(object, "cond", location), block(object, "body", location), span)
@@ -452,6 +489,10 @@ module Tango
             Value.optional(field(object, key, location)) { |value| Value.read_method_site(value, "#{location}.#{key}") }
           end
 
+          private def string_array(object, key, location) : Array(String)
+            Value.string_array(field(object, key, location), "#{location}.#{key}")
+          end
+
           private def read_fields(object, key, location) : Array(IR::Field)
             Value.array(field(object, key, location), "#{location}.#{key}").map_with_index do |value, index|
               Value.read_field(value, "#{location}.#{key}[#{index}]")
@@ -465,7 +506,7 @@ module Tango
           end
 
           private def expression_kind?(kind : String) : Bool
-            !%w(block param block_arg block_param return break next field_initializer class enum def while).includes?(kind)
+            !%w(block param block_arg block_param return break next field_initializer class enum namespace type_alias type_alias_reference constant def while).includes?(kind)
           end
 
           private def expected_fields(kind : String, location : String) : Array(String)
@@ -474,6 +515,7 @@ module Tango
                     when "block"                                                                                 then %w(body)
                     when "local", "class_ref"                                                                    then %w(name name_span)
                     when "enum_member"                                                                           then %w(enum_type name name_span)
+                    when "constant_reference"                                                                    then %w(path name_span)
                     when "instance_var"                                                                          then %w(name name_span owner)
                     when "param"                                                                                 then %w(name type name_span)
                     when "assign"                                                                                then %w(target value)
@@ -519,7 +561,11 @@ module Tango
                     when "field_initializer"                                                                     then %w(field value name_span)
                     when "class"                                                                                 then %w(name concrete_type superclass_name superclass_type fields initializers reference name_span)
                     when "enum"                                                                                  then %w(type base_type members name_span)
-                    when "def"                                                                                   then %w(name owner callable_kind params block_param body return_type name_span capability_witnesses)
+                    when "namespace"                                                                             then %w(path body name_span)
+                    when "type_alias"                                                                            then %w(path target name_span)
+                    when "type_alias_reference"                                                                  then %w(path target name_span)
+                    when "constant"                                                                              then %w(path value type name_span)
+                    when "def"                                                                                   then %w(name owner callable_kind namespace_path params block_param body return_type return_type_reference name_span capability_witnesses)
                     when "while"                                                                                 then %w(cond body)
                     else
                       Value.invalid("#{location}.kind", "unknown NIR node kind #{kind.inspect}")

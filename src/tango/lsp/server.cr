@@ -8,9 +8,6 @@ require "./type_hierarchy"
 
 module Tango
   module Lsp
-    # A small stdio LSP server. It exposes text sync, push diagnostics, and
-    # goto-definition, reusing the same `Tango.snapshot` data the CLI already
-    # produces.
     # Open-buffer changes refresh current syntax immediately and schedule only
     # owning roots through the shared resolver. Crystal's global semantic phase
     # remains process-isolated behind revisioned editor projections.
@@ -621,6 +618,7 @@ module Tango
       private def completion_item_kind(kind : Compiler::Editor::Completion::ItemKind) : Int32
         case kind
         in .class?             then 7  # Class
+        in .struct?            then 22 # Struct
         in .enum?              then 13 # Enum
         in .enum_member?       then 20 # Enum member
         in .module?, .package? then 9  # Module/package
@@ -651,15 +649,17 @@ module Tango
 
       private def symbol_kind(kind : Frontend::SyntaxSurface::DeclarationKind) : Int32
         case kind
-        in .class?       then 5  # Class
-        in .enum?        then 10 # Enum
-        in .enum_member? then 22 # Enum member
-        in .module?      then 11 # Interface
-        in .method?      then 6  # Method
-        in .field?       then 8  # Field
-        in .function?    then 12 # Function
-        in .local?       then 13 # Variable
-        in .parameter?   then 13 # Variable
+        in .class?, .type_alias? then 5  # Class
+        in .struct?              then 23 # Struct
+        in .enum?                then 10 # Enum
+        in .enum_member?         then 22 # Enum member
+        in .module?              then 11 # Interface
+        in .constant?            then 14 # Constant
+        in .method?              then 6  # Method
+        in .field?               then 8  # Field
+        in .function?            then 12 # Function
+        in .local?               then 13 # Variable
+        in .parameter?           then 13 # Variable
         end
       end
 

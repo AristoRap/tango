@@ -21,7 +21,7 @@ module Tango
             selection = stmt.name_span
             next unless selection
             surface = @syntax_surface.declaration_at(selection)
-            next unless surface && surface.kind.class?
+            next unless surface && (surface.kind.class? || surface.kind.struct?)
             kind = stmt.reference? ? HierarchyFacts::ItemKind::Class : HierarchyFacts::ItemKind::Struct
             hierarchy_item(stmt.concrete_type, surface, kind)
           end
@@ -119,7 +119,7 @@ module Tango
           name = type.name
           return unless name
           @syntax_surface.declarations.find do |surface|
-            type_kind = surface.kind.module? || (!module_only && surface.kind.class?)
+            type_kind = surface.kind.module? || (!module_only && (surface.kind.class? || surface.kind.struct?))
             type_kind && qualified_surface_name(surface) == name
           end
         end

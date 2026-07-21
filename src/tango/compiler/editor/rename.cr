@@ -87,7 +87,7 @@ module Tango
 
         private def self.valid_name?(family : Index::SymbolFamily, name : String) : Bool
           return false if KEYWORDS.includes?(name)
-          if family.symbols.any?(&.kind.class?)
+          if family.symbols.any? { |symbol| symbol.kind.class? || symbol.kind.struct? }
             !!name.match(/\A[A-Z][A-Za-z0-9_]*\z/)
           else
             !!name.match(/\A[a-z_][A-Za-z0-9_]*\z/)

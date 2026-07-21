@@ -53,14 +53,15 @@ module Tango
               end
               @declarations << SyntaxSurface::Declaration.new(
                 name,
-                SyntaxSurface::DeclarationKind::Class,
+                node.struct? ? SyntaxSurface::DeclarationKind::Struct : SyntaxSurface::DeclarationKind::Class,
                 range,
                 selection,
                 container,
                 detail,
                 node.doc
               )
-              @scopes << SyntaxSurface::Scope.new(SyntaxSurface::ScopeKind::Class, range, qualified_name(name, container))
+              scope_kind = node.struct? ? SyntaxSurface::ScopeKind::Struct : SyntaxSurface::ScopeKind::Class
+              @scopes << SyntaxSurface::Scope.new(scope_kind, range, qualified_name(name, container))
             end
 
             segments.each { |segment| @state.containers << segment }
@@ -206,8 +207,19 @@ module Tango
 
           def visit(node : ::Crystal::Assign) : Bool
             variable = node.target.as?(::Crystal::Var)
-            return true unless variable
-            add_local(variable.name, variable.location, nil)
+            if variable
+              add_local(variable.name, variable.location, nil)
+              return true
+            end
+
+            if path = node.target.as?(::Crystal::Path)
+              add_named_declaration(path, SyntaxSurface::DeclarationKind::Constant, node_range(node), path.to_s)
+            end
+            true
+          end
+
+          def visit(node : ::Crystal::Alias) : Bool
+            add_named_declaration(node.name, SyntaxSurface::DeclarationKind::TypeAlias, node_range(node), "alias #{node.name} = #{node.value}")
             true
           end
 
@@ -252,6 +264,16 @@ module Tango
               io << ')'
               node.return_type.try { |return_type| io << " : " << return_type }
             end
+          end
+
+          private def add_named_declaration(path : ::Crystal::Path, kind : SyntaxSurface::DeclarationKind, range : Source::Range?, detail : String) : Nil
+            name = path.names.last
+            selection = location_range(path.location, path.to_s).try do |full|
+              Source::Range.new(full.path, full.end_offset - name.bytesize, full.end_offset, full.line, full.column.try { |column| column + path.to_s.bytesize - name.bytesize })
+            end
+            return unless range && selection
+            container = joined_container(path.names[0...-1])
+            @declarations << SyntaxSurface::Declaration.new(name, kind, range, selection, container, detail)
           end
 
           private def add_local(name : String, location : ::Crystal::Location?, explicit_type : String?) : Nil

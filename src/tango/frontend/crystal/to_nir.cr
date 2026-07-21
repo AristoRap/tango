@@ -19,6 +19,7 @@ module Tango
           getter owner_classes = {} of String => IR::NIR::Class
           getter loop_ids = {} of UInt64 => NodeId
           getter type_annotations = {} of IR::Type => Array(IR::NIR::TargetAnnotation)
+          getter type_aliases = {} of Array(String) => IR::Type
 
           def queue(definition : ::Crystal::Def) : Nil
             pending_defs << definition if seen_defs.add?(definition.object_id)
@@ -94,6 +95,16 @@ module Tango
             translate_class(node)
           when ::Crystal::EnumDef
             translate_enum(node)
+          when ::Crystal::ModuleDef
+            translate_namespace(node)
+          when ::Crystal::Alias
+            translate_alias(node)
+          when ::Crystal::Assign
+            if constant_assignment?(node)
+              translate_constant(node)
+            else
+              translate_expr(node)
+            end
           when ::Crystal::While
             translate_while(node)
           when ::Crystal::Return
@@ -299,7 +310,74 @@ module Tango
             name_span: name_span(node.name_location, node.name),
             owner: owner_type,
             callable_kind: callable_kind,
-            capability_witnesses: capability_witnesses(node)
+            capability_witnesses: capability_witnesses(node),
+            namespace_path: definition_namespace_path(owner),
+            return_type_reference: type_alias_reference(node.return_type, definition_namespace_path(owner))
+          )
+        end
+
+        private def type_alias_reference(node : ::Crystal::ASTNode?, owner_path : Array(String)) : IR::NIR::TypeAliasReference?
+          path = node.as?(::Crystal::Path)
+          return unless path
+          alias_type = path.target_type.as?(::Crystal::AliasType)
+          alias_path = alias_type ? named_path(alias_type) : path.names.size > 1 ? path.names : owner_path + path.names
+          target = alias_type ? build_type(alias_type.aliased_type) : @state.type_aliases[alias_path]?
+          return unless target
+          IR::NIR::TypeAliasReference.new(
+            next_id,
+            alias_path,
+            target,
+            span(path),
+            path_name_span(path)
+          )
+        end
+
+        private def translate_namespace(node : ::Crystal::ModuleDef) : IR::NIR::Namespace
+          nodes = top_level_nodes(node.body).reject do |child|
+            child.is_a?(::Crystal::Def) || child.is_a?(::Crystal::Annotation)
+          end
+          body = IR::NIR::Block.new(next_id, translate_statements(nodes), span(node.body))
+          IR::NIR::Namespace.new(
+            next_id,
+            namespace_path(node.resolved_type),
+            body,
+            span(node),
+            path_name_span(node.name)
+          )
+        end
+
+        private def translate_alias(node : ::Crystal::Alias) : IR::NIR::TypeAlias
+          resolved = node.resolved_type
+          declaration = IR::NIR::TypeAlias.new(
+            next_id,
+            named_path(resolved),
+            build_type(resolved.aliased_type),
+            span(node),
+            path_name_span(node.name)
+          )
+          @state.type_aliases[declaration.path] = declaration.target
+          declaration
+        end
+
+        private def constant_assignment?(node : ::Crystal::Assign) : Bool
+          node.target.as?(::Crystal::Path).try(&.target_const).try do |constant|
+            !constant.namespace.is_a?(::Crystal::EnumType)
+          end || false
+        end
+
+        private def translate_constant(node : ::Crystal::Assign) : IR::NIR::Constant
+          target = node.target.as(::Crystal::Path)
+          constant = target.target_const
+          raise "constant assignment lost its resolved declaration" unless constant
+          value = translate_expr(node.value)
+          type = value.type || type_of(node.value) || IR::Type.unknown
+          IR::NIR::Constant.new(
+            next_id,
+            named_path(constant),
+            value,
+            type,
+            span(node),
+            path_name_span(target)
           )
         end
 
@@ -366,7 +444,37 @@ module Tango
             type = build_type(owner)
             return IR::NIR::EnumMember.new(next_id, type, constant.name, type_of(node), span(node), path_name_span(node))
           end
+          if constant
+            return IR::NIR::ConstantReference.new(
+              next_id,
+              named_path(constant),
+              type_of(node),
+              span(node),
+              path_name_span(node)
+            )
+          end
           unsupported(node)
+        end
+
+        private def definition_namespace_path(owner : ::Crystal::Type?) : Array(String)
+          return [] of String unless owner
+          resolved = owner.metaclass? ? owner.instance_type : owner
+          resolved.is_a?(::Crystal::NonGenericModuleType) ? namespace_path(resolved) : [] of String
+        end
+
+        private def named_path(type : ::Crystal::NamedType) : Array(String)
+          namespace_path(type.namespace) + [type.name]
+        end
+
+        private def namespace_path(type : ::Crystal::ModuleType) : Array(String)
+          segments = [] of String
+          current = type
+          until current.is_a?(::Crystal::Program)
+            segments << current.as(::Crystal::NamedType).name
+            current = current.namespace
+          end
+          segments.reverse!
+          segments
         end
 
         private def resolved_superclass_type(
@@ -535,7 +643,8 @@ module Tango
               IR::NIR::CallTarget.new(
                 target_def.name,
                 target_def.owner?.try(&.to_s),
-                annotations(target_def)
+                annotations(target_def),
+                definition_namespace_path(target_def.owner?)
               )
             end
           end || [] of IR::NIR::CallTarget

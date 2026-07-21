@@ -9,8 +9,19 @@ module Tango
           getter struct_decls : Array(StructDecl)
           getter method_decls : Array(MethodDecl)
           getter enum_decls : Array(EnumDecl)
+          getter global_decls : Array(GlobalDecl)
 
-          def initialize(@package_name : String, @requirements : Array(Runtime::Requirement), @functions : Array(Func), @struct_decls : Array(StructDecl) = [] of StructDecl, @method_decls : Array(MethodDecl) = [] of MethodDecl, @enum_decls : Array(EnumDecl) = [] of EnumDecl)
+          def initialize(@package_name : String, @requirements : Array(Runtime::Requirement), @functions : Array(Func), @struct_decls : Array(StructDecl) = [] of StructDecl, @method_decls : Array(MethodDecl) = [] of MethodDecl, @enum_decls : Array(EnumDecl) = [] of EnumDecl, @global_decls : Array(GlobalDecl) = [] of GlobalDecl)
+          end
+        end
+
+        class GlobalDecl
+          getter name : String
+          getter type_name : String
+          getter value : Expr
+          getter line : LineDirective?
+
+          def initialize(@name : String, @type_name : String, @value : Expr, @line : LineDirective? = nil)
           end
         end
 

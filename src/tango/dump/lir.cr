@@ -20,6 +20,12 @@ module Tango
           program.conversions.each { |conversion| emit_conversion(io, conversion) }
           program.arrays.each { |array| emit_array(io, array) }
           program.hashes.each { |hash| emit_hash(io, hash) }
+          program.globals.each do |global|
+            io << "Global " << global.name << " : " << global.type
+            emit_inline_value(io, global.value, 0)
+            SourceLocations.append(io, global.loc)
+            io << '\n'
+          end
           program.functions.each { |function| emit_func(io, function) }
           program.body.each { |stmt| emit_stmt(io, stmt, 0) }
         end
@@ -196,6 +202,8 @@ module Tango
           io << " StringConst " << value.value.inspect
         when IR::LIR::EnumConst
           io << " EnumConst " << value.enum_type << "::" << value.member
+        when IR::LIR::GlobalRef
+          io << " GlobalRef " << value.name
         when IR::LIR::CollectionCount
           io << " CollectionCount " << value.source.class.name.split("::").last
           case source = value.source

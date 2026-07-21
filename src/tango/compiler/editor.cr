@@ -1,4 +1,5 @@
 require "./editor/index"
+require "./editor/declaration_symbols"
 require "./editor/hierarchy_builder"
 require "./editor/context"
 require "./editor/callables"

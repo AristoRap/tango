@@ -142,7 +142,11 @@ module Tango
         input_cardinality : CardinalityBounds,
         output_cardinality : CardinalityBounds?
 
-      record CallableSignature, name : String, parameter_types : Array(IR::Type)
+      record CallableSignature, name : String, parameter_types : Array(IR::Type), namespace_path : Array(String) = [] of String
+
+      record NamespaceDefinition, path : Array(String), parent : Array(String)?
+      record ConstantDefinition, declaration : NodeId, path : Array(String), type : IR::Type
+      record TypeAliasDefinition, declaration : NodeId, path : Array(String), target : IR::Type
 
       alias CapabilityConformance = IR::CapabilityConformance
 
@@ -230,6 +234,22 @@ module Tango
         end
       end
 
+      struct ConstantReference < Reference
+        getter declaration : NodeId
+        getter path : Array(String)
+
+        def initialize(@declaration : NodeId, @path : Array(String))
+        end
+      end
+
+      struct TypeAliasReference < Reference
+        getter declaration : NodeId
+        getter path : Array(String)
+
+        def initialize(@declaration : NodeId, @path : Array(String))
+        end
+      end
+
       # A local/param/block-arg/block-param read, resolved by lexical scope to
       # the NodeId of its binding declaration.
       struct LocalReference < Reference
@@ -264,6 +284,10 @@ module Tango
         # each entry is (field name, field type).
         getter struct_layouts = Hash(String, StructLayout).new
         getter enums = Hash(IR::Type, EnumDefinition).new
+        getter namespaces = Hash(NodeId, NamespaceDefinition).new
+        getter namespace_owners = Hash(NodeId, Array(String)).new
+        getter constants = Hash(Array(String), ConstantDefinition).new
+        getter type_aliases = Hash(Array(String), TypeAliasDefinition).new
         getter exception_hierarchies = Hash(String, ExceptionHierarchy).new
         # Node → declaration edges (`.new`, instance-var access, local read),
         # produced by Passes::References. Concrete callable dispatch → def

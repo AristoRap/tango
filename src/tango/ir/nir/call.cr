@@ -13,9 +13,10 @@ module Tango
       class CallTarget
         getter name : String
         getter owner : String?
+        getter owner_path : Array(String)
         getter annotations : Array(TargetAnnotation)
 
-        def initialize(@name : String, @owner : String?, @annotations : Array(TargetAnnotation))
+        def initialize(@name : String, @owner : String?, @annotations : Array(TargetAnnotation), @owner_path : Array(String) = [] of String)
         end
       end
 

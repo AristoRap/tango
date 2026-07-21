@@ -8,6 +8,7 @@ module Tango
       def run(program : IR::NIR::Program, facts : Analysis::Facts::Table, profile : Compiler::CompilationProfile = Compiler::CompilationProfile::Development) : Plans::Table
         table = Plans::Table.new
         Strategies::Layout.run(program, facts, table)
+        Strategies::Declarations.run(program, facts, table)
         Strategies::Enums.run(program, facts, table)
         Strategies::Repr.run(program, facts, table)
         Strategies::UnionConversions.run(program, facts, table)

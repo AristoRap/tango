@@ -149,7 +149,7 @@ module Tango
             children
           when ChanReceive, ChanReceiveMaybe, ChanReceiveMaybeBox, ChanReceiveState
             nodes(value.channel)
-          when IntConst, FloatConst, StringConst, EnumConst, BoolConst, UnsupportedValue,
+          when IntConst, FloatConst, StringConst, EnumConst, GlobalRef, BoolConst, UnsupportedValue,
                NilConst, NilValue, Temp, Alloc, MakeMutex, ArrayNew, HashNew
             Array(Node).new
           else

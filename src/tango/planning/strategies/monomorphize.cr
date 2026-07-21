@@ -22,7 +22,7 @@ module Tango
               signature << block_param.signature.to_type
               mode = block_mode(block_param)
             end
-            table.monomorphs[stmt.id] = Plans::DefPlan.new(Mangle.func_name(stmt.name, signature), mode)
+            table.monomorphs[stmt.id] = Plans::DefPlan.new(Mangle.func_name(stmt.name, signature, stmt.namespace_path), mode)
           end
         end
 

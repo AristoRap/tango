@@ -7,6 +7,7 @@ module Tango
       module Completion
         enum ItemKind
           Class
+          Struct
           Enum
           EnumMember
           Module
@@ -140,9 +141,12 @@ module Tango
         private def self.item_kind(kind : Frontend::SyntaxSurface::DeclarationKind) : ItemKind
           case kind
           in .class?       then ItemKind::Class
+          in .struct?      then ItemKind::Struct
           in .enum?        then ItemKind::Enum
           in .enum_member? then ItemKind::EnumMember
           in .module?      then ItemKind::Module
+          in .constant?    then ItemKind::Variable
+          in .type_alias?  then ItemKind::Class
           in .function?    then ItemKind::Function
           in .method?      then ItemKind::Method
           in .field?       then ItemKind::Field

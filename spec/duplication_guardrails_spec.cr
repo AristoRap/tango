@@ -26,13 +26,14 @@ module DuplicationGuardrails
   end
 
   REPEATED_FIELD_PAIRS = {
-    "src/tango/ir/lir/program.cr|name+type"              => Review.new(%w(Param StructType UnionType), :intentional, "Typed LIR declarations preserve both target names and language identity."),
+    "src/tango/ir/lir/program.cr|name+type"              => Review.new(%w(Global Param StructType UnionType), :intentional, "Typed LIR declarations preserve both target names and language identity."),
     "src/tango/ir/lir/program.cr|reference+type"         => Review.new(%w(ArrayType HashType StructType), :intentional, "Representation descriptors pair concrete type identity with reference policy."),
     "src/tango/ir/lir/value.cr|source+value"             => Review.new(%w(DispatchRelationValue NumericConvert ScalarStringify), :intentional, "Distinct operation wrappers retain their typed input and source relation."),
     "src/tango/ir/lir/value.cr|hash+key"                 => Review.new(%w(HashFetch HashGet HashHasKey HashSet), :debt, "Keyed hash operations repeat receiver and key state; review a shared shape when this family grows."),
     "src/tango/ir/nir/hash.cr|hash+key"                  => Review.new(%w(HashFetch HashGet HashHasKey HashSet), :debt, "Keyed hash operations repeat receiver and key state; review a shared shape when this family grows."),
     "src/tango/planning/plans.cr|reference+type"         => Review.new(%w(ArrayRepr Constructor HashRepr), :intentional, "Each representation plan pairs its language type with a reference policy."),
     "src/tango/ir/nir/call.cr|name+name_span"            => Review.new(%w(BlockArg BlockParam Call), :intentional, "Named syntax nodes retain both semantic names and precise source spans."),
+    "src/tango/ir/nir/namespace.cr|name_span+path"       => Review.new(%w(Constant ConstantReference Namespace TypeAlias TypeAliasReference), :intentional, "Namespace-owned declarations and references retain segmented identity plus their exact source token."),
     "src/tango/lsp/analysis_codec.cr|documentation+name" => Review.new(%w(DeclarationData SurfaceDeclarationData SurfaceParameterData), :intentional, "Serialized editor declarations carry display names and documentation independently."),
     "src/tango/lsp/analysis_codec.cr|kind+range"         => Review.new(%w(OccurrenceData SemanticTokenData SurfaceDeclarationData SurfaceScopeData), :intentional, "Serialized editor facts need both source ranges and protocol-specific kinds."),
   }
@@ -56,7 +57,7 @@ module DuplicationGuardrails
   MANUAL_SCOPE_DEBT = {} of String => Review
 
   REPEATED_RECORD_SHAPES = {
-    "name+type"                                            => Review.new(%w(src/tango/compiler/editor/index.cr#Parameter src/tango/ir/type.cr#Field), :intentional, "Small named typed values are independent domain records."),
+    "name+type"                                            => Review.new(%w(src/tango/compiler/editor/hover.cr#ConstantSubject src/tango/compiler/editor/index.cr#Parameter src/tango/ir/type.cr#Field), :intentional, "Small named typed values are independent domain records."),
     "label+payload+tag"                                    => Review.new(%w(src/tango/ir/lir/program.cr#Variant src/tango/planning/plans.cr#Variant), :intentional, "Planned and committed union variants preserve the same identity."),
     "name+type_name"                                       => Review.new(%w(src/tango/target/go/ir.cr#Field src/tango/target/go/ir.cr#Receiver), :intentional, "Go fields and receivers independently require a name and rendered type."),
     "name+value"                                           => Review.new(%w(src/tango/analysis/facts.cr#EnumMember src/tango/target/go/ir.cr#Member), :intentional, "Semantic enum members and typed Go constants independently retain a name and integer literal."),

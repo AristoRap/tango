@@ -5,8 +5,12 @@ module Tango
     # `factorial(Int32)` -> `factorial_Int32`, `identity(String)` ->
     # `identity_String`.
     module Mangle
-      def self.func_name(name : String, arg_types : Array(IR::Type)) : String
-        ([sanitize(name)] + arg_types.map { |type| sanitize(type.to_s) }).join("_")
+      def self.func_name(name : String, arg_types : Array(IR::Type), owner_path : Array(String) = [] of String) : String
+        (owner_path.map { |segment| sanitize(segment) } + [sanitize(name)] + arg_types.map { |type| sanitize(type.to_s) }).join("_")
+      end
+
+      def self.path_name(path : Array(String)) : String
+        path.map { |segment| sanitize(segment) }.join("_")
       end
 
       # Injective type-name mangling:

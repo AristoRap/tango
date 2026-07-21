@@ -8,6 +8,7 @@ module Tango
       def run(program : IR::NIR::Program) : Facts::Table
         table = Facts::Table.new
         Passes::Types.run(program, table)
+        Passes::Declarations.run(program, table)
         Passes::Annotations.run(program, table)
         Passes::Calls.run(program, table)
         Passes::Capabilities.run(program, table)

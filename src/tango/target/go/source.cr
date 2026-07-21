@@ -15,6 +15,7 @@ module Tango
             emit_helpers(io, helpers)
             emit_enums(io, file.enum_decls)
             emit_structs(io, file.struct_decls)
+            emit_globals(io, file.global_decls)
 
             file.method_decls.each do |method|
               emit_func(io, method)
@@ -68,6 +69,15 @@ module Tango
               io << "\t" << member.name << ' ' << decl.name << " = " << member.value << "\n"
             end
             io << ")\n\n"
+          end
+        end
+
+        private def self.emit_globals(io : IO, globals : Array(IR::GlobalDecl))
+          globals.each do |decl|
+            decl.line.try { |line| emit_line_directive(io, line) }
+            io << "var " << decl.name << ' ' << decl.type_name << " = "
+            emit_expr(io, decl.value)
+            io << "\n\n"
           end
         end
 

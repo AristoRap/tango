@@ -61,6 +61,9 @@ module Tango
               builder.field("enum_type") { Value.write_type(builder, node.enum_type) }
               builder.field("name", node.name)
               write_nullable_range(builder, "name_span", node.name_span)
+            when IR::NIR::ConstantReference
+              builder.field("path", node.path)
+              write_nullable_range(builder, "name_span", node.name_span)
             when IR::NIR::InstanceVar
               write_named(builder, node)
               builder.field("owner", node.owner)
@@ -240,18 +243,37 @@ module Tango
                 end
               end
               write_nullable_range(builder, "name_span", node.name_span)
+            when IR::NIR::Namespace
+              builder.field("path", node.path)
+              builder.field("body") { write_node(builder, node.body) }
+              write_nullable_range(builder, "name_span", node.name_span)
+            when IR::NIR::TypeAlias
+              builder.field("path", node.path)
+              builder.field("target") { Value.write_type(builder, node.target) }
+              write_nullable_range(builder, "name_span", node.name_span)
+            when IR::NIR::TypeAliasReference
+              builder.field("path", node.path)
+              builder.field("target") { Value.write_type(builder, node.target) }
+              write_nullable_range(builder, "name_span", node.name_span)
+            when IR::NIR::Constant
+              builder.field("path", node.path)
+              builder.field("value") { write_node(builder, node.value) }
+              builder.field("type") { Value.write_type(builder, node.type) }
+              write_nullable_range(builder, "name_span", node.name_span)
             when IR::NIR::Def
               builder.field("name", node.name)
               builder.field("owner") do
                 Value.write_nullable(builder, node.owner) { |type| Value.write_type(builder, type) }
               end
               builder.field("callable_kind", node.callable_kind.to_s)
+              builder.field("namespace_path", node.namespace_path)
               builder.field("params") { write_nodes(builder, node.params) }
               write_nullable_node(builder, "block_param", node.block_param)
               builder.field("body") { write_node(builder, node.body) }
               builder.field("return_type") do
                 Value.write_nullable(builder, node.return_type) { |type| Value.write_type(builder, type) }
               end
+              write_nullable_node(builder, "return_type_reference", node.return_type_reference)
               write_nullable_range(builder, "name_span", node.name_span)
               builder.field("capability_witnesses") do
                 builder.array do
@@ -343,70 +365,75 @@ module Tango
 
           private def kind(node : IR::NIR::Stmt) : String
             case node
-            when IR::NIR::Block            then "block"
-            when IR::NIR::Local            then "local"
-            when IR::NIR::ClassRef         then "class_ref"
-            when IR::NIR::EnumMember       then "enum_member"
-            when IR::NIR::InstanceVar      then "instance_var"
-            when IR::NIR::Param            then "param"
-            when IR::NIR::Assign           then "assign"
-            when IR::NIR::If               then "if"
-            when IR::NIR::UnsupportedExpr  then "unsupported_expr"
-            when IR::NIR::IntLiteral       then "int_literal"
-            when IR::NIR::FloatLiteral     then "float_literal"
-            when IR::NIR::StringLiteral    then "string_literal"
-            when IR::NIR::BoolLiteral      then "bool_literal"
-            when IR::NIR::NilLiteral       then "nil_literal"
-            when IR::NIR::BlockArg         then "block_arg"
-            when IR::NIR::BlockLiteral     then "block_literal"
-            when IR::NIR::BlockParam       then "block_param"
-            when IR::NIR::InvokeBlock      then "invoke_block"
-            when IR::NIR::Call             then "call"
-            when IR::NIR::CollectionMap    then "collection_map"
-            when IR::NIR::CollectionFilter then "collection_filter"
-            when IR::NIR::CollectionEach   then "collection_each"
-            when IR::NIR::CollectionFold   then "collection_fold"
-            when IR::NIR::IndexedRead      then "indexed_read"
-            when IR::NIR::IndexedWrite     then "indexed_write"
-            when IR::NIR::Interpolation    then "interpolation"
-            when IR::NIR::Size             then "size"
-            when IR::NIR::StringCharAt     then "string_char_at"
-            when IR::NIR::StringEachChar   then "string_each_char"
-            when IR::NIR::StringSplit      then "string_split"
-            when IR::NIR::StringToFloat    then "string_to_float"
-            when IR::NIR::StringToInteger  then "string_to_integer"
-            when IR::NIR::ArrayNew         then "array_new"
-            when IR::NIR::ArrayBuild       then "array_build"
-            when IR::NIR::ArrayGet         then "array_get"
-            when IR::NIR::ArraySet         then "array_set"
-            when IR::NIR::ArrayPush        then "array_push"
-            when IR::NIR::ValueSequence    then "value_sequence"
-            when IR::NIR::HashNew          then "hash_new"
-            when IR::NIR::HashGet          then "hash_get"
-            when IR::NIR::HashSet          then "hash_set"
-            when IR::NIR::HashFetch        then "hash_fetch"
-            when IR::NIR::HashHasKey       then "hash_has_key"
-            when IR::NIR::HashKeyAt        then "hash_key_at"
-            when IR::NIR::Not              then "not"
-            when IR::NIR::TypeTest         then "type_test"
-            when IR::NIR::Cast             then "cast"
-            when IR::NIR::New              then "new"
-            when IR::NIR::Spawn            then "spawn"
-            when IR::NIR::ChannelNew       then "channel_new"
-            when IR::NIR::MutexNew         then "mutex_new"
-            when IR::NIR::ChannelOp        then "channel_op"
-            when IR::NIR::Select           then "select"
-            when IR::NIR::Raise            then "raise"
-            when IR::NIR::ExceptionNew     then "exception_new"
-            when IR::NIR::ExceptionHandler then "exception_handler"
-            when IR::NIR::Return           then "return"
-            when IR::NIR::Break            then "break"
-            when IR::NIR::Next             then "next"
-            when IR::NIR::FieldInitializer then "field_initializer"
-            when IR::NIR::Class            then "class"
-            when IR::NIR::Enum             then "enum"
-            when IR::NIR::Def              then "def"
-            when IR::NIR::While            then "while"
+            when IR::NIR::Block              then "block"
+            when IR::NIR::Local              then "local"
+            when IR::NIR::ClassRef           then "class_ref"
+            when IR::NIR::EnumMember         then "enum_member"
+            when IR::NIR::ConstantReference  then "constant_reference"
+            when IR::NIR::InstanceVar        then "instance_var"
+            when IR::NIR::Param              then "param"
+            when IR::NIR::Assign             then "assign"
+            when IR::NIR::If                 then "if"
+            when IR::NIR::UnsupportedExpr    then "unsupported_expr"
+            when IR::NIR::IntLiteral         then "int_literal"
+            when IR::NIR::FloatLiteral       then "float_literal"
+            when IR::NIR::StringLiteral      then "string_literal"
+            when IR::NIR::BoolLiteral        then "bool_literal"
+            when IR::NIR::NilLiteral         then "nil_literal"
+            when IR::NIR::BlockArg           then "block_arg"
+            when IR::NIR::BlockLiteral       then "block_literal"
+            when IR::NIR::BlockParam         then "block_param"
+            when IR::NIR::InvokeBlock        then "invoke_block"
+            when IR::NIR::Call               then "call"
+            when IR::NIR::CollectionMap      then "collection_map"
+            when IR::NIR::CollectionFilter   then "collection_filter"
+            when IR::NIR::CollectionEach     then "collection_each"
+            when IR::NIR::CollectionFold     then "collection_fold"
+            when IR::NIR::IndexedRead        then "indexed_read"
+            when IR::NIR::IndexedWrite       then "indexed_write"
+            when IR::NIR::Interpolation      then "interpolation"
+            when IR::NIR::Size               then "size"
+            when IR::NIR::StringCharAt       then "string_char_at"
+            when IR::NIR::StringEachChar     then "string_each_char"
+            when IR::NIR::StringSplit        then "string_split"
+            when IR::NIR::StringToFloat      then "string_to_float"
+            when IR::NIR::StringToInteger    then "string_to_integer"
+            when IR::NIR::ArrayNew           then "array_new"
+            when IR::NIR::ArrayBuild         then "array_build"
+            when IR::NIR::ArrayGet           then "array_get"
+            when IR::NIR::ArraySet           then "array_set"
+            when IR::NIR::ArrayPush          then "array_push"
+            when IR::NIR::ValueSequence      then "value_sequence"
+            when IR::NIR::HashNew            then "hash_new"
+            when IR::NIR::HashGet            then "hash_get"
+            when IR::NIR::HashSet            then "hash_set"
+            when IR::NIR::HashFetch          then "hash_fetch"
+            when IR::NIR::HashHasKey         then "hash_has_key"
+            when IR::NIR::HashKeyAt          then "hash_key_at"
+            when IR::NIR::Not                then "not"
+            when IR::NIR::TypeTest           then "type_test"
+            when IR::NIR::Cast               then "cast"
+            when IR::NIR::New                then "new"
+            when IR::NIR::Spawn              then "spawn"
+            when IR::NIR::ChannelNew         then "channel_new"
+            when IR::NIR::MutexNew           then "mutex_new"
+            when IR::NIR::ChannelOp          then "channel_op"
+            when IR::NIR::Select             then "select"
+            when IR::NIR::Raise              then "raise"
+            when IR::NIR::ExceptionNew       then "exception_new"
+            when IR::NIR::ExceptionHandler   then "exception_handler"
+            when IR::NIR::Return             then "return"
+            when IR::NIR::Break              then "break"
+            when IR::NIR::Next               then "next"
+            when IR::NIR::FieldInitializer   then "field_initializer"
+            when IR::NIR::Class              then "class"
+            when IR::NIR::Enum               then "enum"
+            when IR::NIR::Namespace          then "namespace"
+            when IR::NIR::TypeAlias          then "type_alias"
+            when IR::NIR::TypeAliasReference then "type_alias_reference"
+            when IR::NIR::Constant           then "constant"
+            when IR::NIR::Def                then "def"
+            when IR::NIR::While              then "while"
             else
               raise CodecError.new("$.normalized_nir", "unhandled NIR node #{node.class.name}")
             end

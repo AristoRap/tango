@@ -12,6 +12,7 @@ module Tango
           function.body.each { |stmt| unsupported_node_reasons(stmt, reasons) }
         end
         program.body.each { |stmt| unsupported_node_reasons(stmt, reasons) }
+        program.globals.each { |global| unsupported_node_reasons(global.value, reasons) }
 
         reasons
       end

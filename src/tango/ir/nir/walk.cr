@@ -45,10 +45,17 @@ module Tango
             kids = Array(Stmt).new
             node.params.each { |param| kids << param }
             node.block_param.try { |block_param| kids << block_param }
+            node.return_type_reference.try { |reference| kids << reference }
             kids << node.body
           when Class
             node.initializers.map(&.as(Stmt))
           when Enum
+            Array(Stmt).new
+          when Namespace
+            [node.body] of Stmt
+          when Constant
+            [node.value] of Stmt
+          when TypeAlias, TypeAliasReference
             Array(Stmt).new
           when FieldInitializer
             [node.value] of Stmt
@@ -136,7 +143,7 @@ module Tango
             kids
           when ArrayNew, HashNew, MutexNew, IntLiteral, FloatLiteral,
                StringLiteral, BoolLiteral, NilLiteral, Local, ClassRef, InstanceVar,
-               EnumMember, Param, BlockArg, BlockParam, UnsupportedExpr
+               EnumMember, ConstantReference, Param, BlockArg, BlockParam, UnsupportedExpr
             Array(Stmt).new
           else
             raise ArgumentError.new("unhandled NIR node: #{node.class.name}")

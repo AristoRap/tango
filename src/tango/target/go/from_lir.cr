@@ -29,7 +29,12 @@ module Tango
           functions << IR::Func.new("main", body)
 
           enum_decls = program.enums.map { |definition| translate_enum(definition) }
-          IR::File.new("main", requirements, functions, struct_decls, method_decls, enum_decls)
+          global_decls = program.globals.map { |global| translate_global(global, requirements) }
+          IR::File.new("main", requirements, functions, struct_decls, method_decls, enum_decls, global_decls)
+        end
+
+        private def translate_global(global : Tango::IR::LIR::Global, requirements : Array(Runtime::Requirement)) : IR::GlobalDecl
+          IR::GlobalDecl.new(global.name, go_type(global.type), translate_value(global.value, requirements), line_directive(global.loc))
         end
 
         private def translate_enum(definition : Tango::IR::LIR::EnumType) : IR::EnumDecl

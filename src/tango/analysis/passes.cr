@@ -1,4 +1,5 @@
 require "./passes/types"
+require "./passes/declarations"
 require "./passes/annotations"
 require "./passes/calls"
 require "./passes/capabilities"

@@ -35,13 +35,14 @@ module Tango
         private def signature(node : IR::NIR::Def) : Facts::CallableSignature
           parameter_types = node.params.map { |param| param.type || IR::Type.unknown }
           node.block_param.try { |block| parameter_types << block.signature.to_type }
-          Facts::CallableSignature.new(node.name, parameter_types)
+          Facts::CallableSignature.new(node.name, parameter_types, node.namespace_path)
         end
 
         private def signature(node : IR::NIR::Call) : Facts::CallableSignature
           parameter_types = node.args.map { |arg| arg.type || IR::Type.unknown }
           node.block.try { |block| parameter_types << block.signature.to_type }
-          Facts::CallableSignature.new(node.name, parameter_types)
+          owner_path = node.targets.find { |target| target.name == node.name && !target.owner_path.empty? }.try(&.owner_path) || [] of String
+          Facts::CallableSignature.new(node.name, parameter_types, owner_path)
         end
 
         private def signature(node : IR::NIR::New) : Facts::CallableSignature

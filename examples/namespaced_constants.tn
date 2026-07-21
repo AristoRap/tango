@@ -1,0 +1,18 @@
+module Compiler
+  module Codes
+    alias Code = Int32
+
+    DEFAULT = 7_i32
+    PREFIX  = "diagnostic"
+    TABLE   = {"parse" => 10_i32, "type" => 20_i32}
+  end
+end
+
+def code_for(name : String) : Compiler::Codes::Code
+  Compiler::Codes::TABLE[name]
+end
+
+puts Compiler::Codes::PREFIX
+puts Compiler::Codes::DEFAULT
+puts code_for("parse")
+puts code_for("type")

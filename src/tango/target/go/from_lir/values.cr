@@ -20,6 +20,8 @@ module Tango
             IR::StringLit.new(value.value)
           when Tango::IR::LIR::EnumConst
             IR::Ident.new(@types.enum_member_name(value.enum_type, value.member))
+          when Tango::IR::LIR::GlobalRef
+            IR::Ident.new(value.name)
           when Tango::IR::LIR::StringCharAt, Tango::IR::LIR::StringToFloat, Tango::IR::LIR::StringToInteger
             translate_string_value(value, requirements)
           when Tango::IR::LIR::CollectionCount

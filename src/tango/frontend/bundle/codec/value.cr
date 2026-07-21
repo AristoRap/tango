@@ -183,6 +183,7 @@ module Tango
             builder.object do
               builder.field("name", target.name)
               builder.field("owner") { write_nullable(builder, target.owner) { |owner| builder.string(owner) } }
+              builder.field("owner_path", target.owner_path)
               builder.field("annotations") do
                 builder.array do
                   target.annotations.each do |target_annotation|
@@ -195,13 +196,14 @@ module Tango
 
           def read_call_target(value : JSON::Any, location : String) : IR::NIR::CallTarget
             object = object(value, location)
-            expect_keys(object, %w(name owner annotations), location)
+            expect_keys(object, %w(name owner owner_path annotations), location)
             IR::NIR::CallTarget.new(
               string(required(object, "name", location), "#{location}.name"),
               optional_string(required(object, "owner", location), "#{location}.owner"),
               array(required(object, "annotations", location), "#{location}.annotations").map_with_index do |target_annotation, index|
                 read_annotation(target_annotation, "#{location}.annotations[#{index}]")
-              end
+              end,
+              string_array(required(object, "owner_path", location), "#{location}.owner_path")
             )
           end
 

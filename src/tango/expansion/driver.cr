@@ -58,8 +58,29 @@ module Tango
             node.name_span,
             node.owner,
             node.callable_kind,
-            node.capability_witnesses
+            node.capability_witnesses,
+            node.namespace_path,
+            node.return_type_reference
           )
+        when IR::NIR::Namespace
+          IR::NIR::Namespace.new(
+            node.id,
+            node.path,
+            rewrite_block(node.body),
+            node.span,
+            node.name_span
+          )
+        when IR::NIR::Constant
+          IR::NIR::Constant.new(
+            node.id,
+            node.path,
+            rewrite_expr(node.value),
+            node.type,
+            node.span,
+            node.name_span
+          )
+        when IR::NIR::TypeAlias
+          node
         when IR::NIR::Class
           initializers = node.initializers.map do |initializer|
             rewrite(initializer).as(IR::NIR::FieldInitializer)
@@ -282,6 +303,7 @@ module Tango
         when IR::NIR::IntLiteral, IR::NIR::FloatLiteral, IR::NIR::StringLiteral,
              IR::NIR::BoolLiteral, IR::NIR::NilLiteral, IR::NIR::Local,
              IR::NIR::ClassRef, IR::NIR::EnumMember, IR::NIR::InstanceVar, IR::NIR::ArrayNew,
+             IR::NIR::ConstantReference,
              IR::NIR::HashNew, IR::NIR::MutexNew, IR::NIR::UnsupportedExpr
           node
         else

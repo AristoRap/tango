@@ -57,6 +57,10 @@ module Tango
         end
       end
 
+      record NamespacePlan, path : Array(String), target_prefix : String
+      record ConstantPlan, path : Array(String), target_name : String, type : IR::Type
+      record TypeAliasPlan, path : Array(String), target : IR::Type
+
       # The chosen representation of a class: its ordered fields plus whether
       # it is a reference type (pointer) or a value type. The current surface only
       # produces reference classes; value structs wait for a struct example.
@@ -348,6 +352,9 @@ module Tango
         property uncaught_exception : IR::UncaughtExceptionStrategy?
         getter calls = Hash(NodeId, CallPlan).new
         getter monomorphs = Hash(NodeId, DefPlan).new
+        getter namespaces = Hash(NodeId, NamespacePlan).new
+        getter constants = Hash(NodeId, ConstantPlan).new
+        getter type_aliases = Hash(NodeId, TypeAliasPlan).new
         getter capability_dispatches = Hash(NodeId, Array(CapabilityDispatch)).new
         getter layouts = Hash(String, ClassLayout).new
         getter constructors = Hash(NodeId, Constructor).new

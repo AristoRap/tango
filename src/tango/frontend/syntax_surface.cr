@@ -6,9 +6,12 @@ module Tango
     module SyntaxSurface
       enum DeclarationKind
         Class
+        Struct
         Enum
         EnumMember
         Module
+        Constant
+        TypeAlias
         Function
         Method
         Field
@@ -18,6 +21,7 @@ module Tango
 
       enum ScopeKind
         Class
+        Struct
         Enum
         Module
         Callable
@@ -116,13 +120,13 @@ module Tango
 
         def enclosing_type(path : String, offset : Int32) : String?
           @scopes
-            .select { |scope| scope.kind.class? && scope.range.contains?(path, offset) }
+            .select { |scope| (scope.kind.class? || scope.kind.struct?) && scope.range.contains?(path, offset) }
             .min_by?(&.range.length)
             .try(&.container)
         end
 
         private def global?(declaration : Declaration) : Bool
-          declaration.kind.class? || declaration.kind.enum? || declaration.kind.module? || declaration.kind.function?
+          declaration.kind.class? || declaration.kind.struct? || declaration.kind.enum? || declaration.kind.module? || declaration.kind.function?
         end
       end
     end

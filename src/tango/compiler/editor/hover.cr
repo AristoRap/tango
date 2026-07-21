@@ -8,8 +8,11 @@ module Tango
         end
 
         record ClassSubject < Subject, name : String
+        record StructSubject < Subject, name : String
         record EnumSubject < Subject, name : String
         record EnumMemberSubject < Subject, owner : IR::Type, name : String
+        record ConstantSubject < Subject, name : String, type : IR::Type
+        record TypeAliasSubject < Subject, name : String, target : IR::Type
         record BindingSubject < Subject, name : String, type : IR::Type, kind : Index::SymbolKind
         record CallableSubject < Subject,
           owner : IR::Type?,
@@ -84,12 +87,22 @@ module Tango
           subject : Subject = case declaration.kind
           when .class?
             ClassSubject.new(declaration.name)
+          when .struct?
+            StructSubject.new(declaration.name)
           when .enum?
             EnumSubject.new(declaration.name)
           when .enum_member?
             type = declaration.type
             return nil unless type
             EnumMemberSubject.new(type, declaration.name)
+          when .constant?
+            type = declaration.type
+            return nil unless type
+            ConstantSubject.new(declaration.name, type)
+          when .type_alias?
+            target = declaration.type
+            return nil unless target
+            TypeAliasSubject.new(declaration.name, target)
           when .function?, .method?, .constructor?
             signature = declaration.signature
             return nil unless signature
