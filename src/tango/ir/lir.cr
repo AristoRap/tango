@@ -1,5 +1,7 @@
 require "./lir/rescue_clause"
 require "./lir/value"
+require "./lir/collection_value"
+require "./lir/concurrency_value"
 require "./lir/global"
 require "./lir/numeric_value"
 require "./lir/stmt"

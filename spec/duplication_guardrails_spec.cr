@@ -26,14 +26,14 @@ module DuplicationGuardrails
   end
 
   REPEATED_FIELD_PAIRS = {
-    "src/tango/ir/lir/program.cr|name+type"        => Review.new(%w(Global Param StructType UnionType), :intentional, "Typed LIR declarations preserve both target names and language identity."),
-    "src/tango/ir/lir/program.cr|reference+type"   => Review.new(%w(ArrayType HashType StructType), :intentional, "Representation descriptors pair concrete type identity with reference policy."),
-    "src/tango/ir/lir/value.cr|source+value"       => Review.new(%w(DispatchRelationValue NumericConvert ScalarStringify), :intentional, "Distinct operation wrappers retain their typed input and source relation."),
-    "src/tango/ir/lir/value.cr|hash+key"           => Review.new(%w(HashFetch HashGet HashHasKey HashSet), :debt, "Keyed hash operations repeat receiver and key state; review a shared shape when this family grows."),
-    "src/tango/ir/nir/hash.cr|hash+key"            => Review.new(%w(HashFetch HashGet HashHasKey HashSet), :debt, "Keyed hash operations repeat receiver and key state; review a shared shape when this family grows."),
-    "src/tango/planning/plans.cr|reference+type"   => Review.new(%w(ArrayRepr Constructor HashRepr), :intentional, "Each representation plan pairs its language type with a reference policy."),
-    "src/tango/ir/nir/call.cr|name+name_span"      => Review.new(%w(BlockArg BlockParam Call), :intentional, "Named syntax nodes retain both semantic names and precise source spans."),
-    "src/tango/ir/nir/namespace.cr|name_span+path" => Review.new(%w(Constant ConstantReference Namespace TypeAlias TypeAliasReference), :intentional, "Namespace-owned declarations and references retain segmented identity plus their exact source token."),
+    "src/tango/ir/lir/program.cr|name+type"         => Review.new(%w(Global Param StructType UnionType), :intentional, "Typed LIR declarations preserve both target names and language identity."),
+    "src/tango/ir/lir/program.cr|reference+type"    => Review.new(%w(ArrayType HashType StructType), :intentional, "Representation descriptors pair concrete type identity with reference policy."),
+    "src/tango/ir/lir/value.cr|source+value"        => Review.new(%w(DispatchRelationValue NumericConvert ScalarStringify), :intentional, "Distinct operation wrappers retain their typed input and source relation."),
+    "src/tango/ir/lir/collection_value.cr|hash+key" => Review.new(%w(HashFetch HashGet HashHasKey HashSet), :debt, "Keyed hash operations repeat receiver and key state; review a shared shape when this family grows."),
+    "src/tango/ir/nir/hash.cr|hash+key"             => Review.new(%w(HashFetch HashGet HashHasKey HashSet), :debt, "Keyed hash operations repeat receiver and key state; review a shared shape when this family grows."),
+    "src/tango/planning/plans.cr|reference+type"    => Review.new(%w(ArrayRepr Constructor HashRepr), :intentional, "Each representation plan pairs its language type with a reference policy."),
+    "src/tango/ir/nir/call.cr|name+name_span"       => Review.new(%w(BlockArg BlockParam Call), :intentional, "Named syntax nodes retain both semantic names and precise source spans."),
+    "src/tango/ir/nir/namespace.cr|name_span+path"  => Review.new(%w(Constant ConstantReference Namespace TypeAlias TypeAliasReference), :intentional, "Namespace-owned declarations and references retain segmented identity plus their exact source token."),
   }
 
   CROSS_CLASS_FIELD_CLUSTERS = {

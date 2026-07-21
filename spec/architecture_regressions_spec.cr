@@ -6,13 +6,7 @@ require "./spec_helper"
 module ArchitectureRegressions
   ROOT = File.expand_path("..", __DIR__)
 
-  LARGE_FILE_DEBT = {
-    "src/tango/ir/lir/value.cr"            => 797,
-    "src/tango/frontend/crystal/to_nir.cr" => 796,
-    "src/tango/compiler/editor/index.cr"   => 785,
-    "src/tango/lowering/to_lir.cr"         => 734,
-    "src/tango/lsp/server.cr"              => 733,
-  }
+  LARGE_FILE_DEBT = {} of String => Int32
 
   def self.read(path : String) : String
     File.read(File.join(ROOT, path))
@@ -66,13 +60,13 @@ describe "architecture audit regressions" do
 
   it "pins complete select reconstruction and channel primitive dispatch" do
     select_source = ArchitectureRegressions.read("src/tango/frontend/crystal/select_translation.cr")
-    to_nir = ArchitectureRegressions.read("src/tango/frontend/crystal/to_nir.cr")
+    call_metadata = ArchitectureRegressions.read("src/tango/frontend/crystal/call_metadata.cr")
 
     select_source.should contain("select_index_condition?")
     select_source.should contain("select_bug_sentinel?")
     select_source.should contain("valid_select_action_arity?")
-    to_nir.should contain(%(when "tango_chan_close"))
-    to_nir.should contain("unknown channel primitive")
+    call_metadata.should contain(%(when "tango_chan_close"))
+    call_metadata.should contain("unknown channel primitive")
   end
 
   it "keeps editor diagnostic transport aligned with the shared diagnostic" do
@@ -149,7 +143,7 @@ describe "architecture audit regressions" do
     surface.should contain("roots[file.identity] = root")
   end
 
-  it "ratchets large ownership files downward and admits no new one" do
+  it "admits no responsibility-heavy source file at 700 lines or more" do
     large = Dir.glob(File.join(ArchitectureRegressions::ROOT, "src/**/*.cr")).compact_map do |path|
       relative = path.lchop("#{ArchitectureRegressions::ROOT}/")
       count = File.read(path).lines.size
@@ -158,8 +152,22 @@ describe "architecture audit regressions" do
 
     unclassified = large.keys - ArchitectureRegressions::LARGE_FILE_DEBT.keys
     unclassified.should be_empty, "new responsibility-heavy files: #{unclassified.join(", ")}"
+    large.should be_empty
     ArchitectureRegressions::LARGE_FILE_DEBT.each do |path, ceiling|
       ArchitectureRegressions.lines(path).should be <= ceiling, "#{path} grew beyond its ratchet"
+    end
+  end
+
+  it "keeps each extracted large-file responsibility behind its subsystem barrel" do
+    {
+      "src/tango/ir/lir.cr"           => %w(./lir/collection_value ./lir/concurrency_value),
+      "src/tango/frontend/crystal.cr" => %w(./crystal/call_metadata),
+      "src/tango/compiler/editor.cr"  => %w(./editor/index_symbol_families),
+      "src/tango/lowering.cr"         => %w(./lowering/declaration_lowering),
+      "src/tango/lsp.cr"              => %w(./lsp/server_mutations),
+    }.each do |barrel, responsibilities|
+      source = ArchitectureRegressions.read(barrel)
+      responsibilities.each { |path| source.should contain(%(require "#{path}")) }
     end
   end
 end
