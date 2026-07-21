@@ -362,13 +362,13 @@ describe "phase boundary guardrails" do
     compiler.lines.select(&.starts_with?("require ")).should contain(%(require "./frontend"))
     compiler.should_not contain(%(require "./frontend/crystal"))
     cli.lines.select(&.starts_with?("require ")).should eq([
+      %(require "option_parser"),
       %(require "./version"),
       %(require "./compiler"),
       %(require "./dump"),
       %(require "./lsp"),
       %(require "./cli/source_input"),
       %(require "./cli/diagnostic_output"),
-      %(require "./cli/semantic_transport"),
       %(require "./cli/clean"),
       %(require "./cli/doctor"),
       %(require "./cli/format"),

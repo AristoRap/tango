@@ -1,11 +1,28 @@
 require "../spec_helper"
 require "../../src/tango/cli"
+require "../../src/tango/cli/semantic_transport"
 
 private def run_cli(argv : Array(String), stdin : String = "") : {Int32, String, String}
   input = IO::Memory.new(stdin)
   output = IO::Memory.new
   error = IO::Memory.new
   status = Tango::CLI.run(argv, input, output, error)
+  {status, output.to_s, error.to_s}
+end
+
+private def run_semantic_producer(argv : Array(String), stdin : String = "") : {Int32, String, String}
+  input = IO::Memory.new(stdin)
+  output = IO::Memory.new
+  error = IO::Memory.new
+  status = Tango::CLI::SemanticTransport::Producer.run(argv, input, output, error)
+  {status, output.to_s, error.to_s}
+end
+
+private def run_semantic_consumer(argv : Array(String), stdin : String = "") : {Int32, String, String}
+  input = IO::Memory.new(stdin)
+  output = IO::Memory.new
+  error = IO::Memory.new
+  status = Tango::CLI::SemanticTransport::Consumer.run(argv, input, output, error)
   {status, output.to_s, error.to_s}
 end
 
@@ -45,25 +62,53 @@ private def with_cli_fake_toolchain(name : String, gofmt_script : String, go_scr
 end
 
 describe "tango help" do
-  it "keeps run and build as the product surface and Go emission explicit" do
+  it "leads with the binary version and keeps implementation surfaces out of ordinary help" do
     status, out, err = run_cli(["help"])
 
     status.should eq(0)
-    out.should contain("tango run [file|-] [--race] [--release]")
-    out.should contain("tango build [file|-] [-o output] [--race] [--release]")
-    out.should contain("tango emit go [--release] [file|-]")
-    out.should contain("tango dump nir|facts|plans|lir")
-    out.should contain("tango fmt [--check] [path ...]")
-    out.should contain("tango frontend [file|-] --emit-semantic bundle|-")
-    out.should contain("tango core [--release] bundle|- --emit-go")
-    out.lines.any? { |line| line.lstrip.starts_with?("go ") }.should be_false
+    out.lines.first.should eq("Tango #{Tango::VERSION}")
+    out.should contain("run          Compile and run a Tango program")
+    out.should contain("build        Compile a Tango executable")
+    out.should contain("fmt          Format Tango source files")
+    out.should contain("--version")
+    out.should_not contain("frontend")
+    out.should_not contain("core")
+    out.should_not contain("internal")
+    out.should_not contain("bootstrap")
+    out.should_not contain("prelude")
+    out.should_not contain("emit")
+    out.should_not contain("dump")
+    out.should_not contain("lsp")
     err.should be_empty
+  end
+
+  it "shows developer commands only when explicitly requested" do
+    status, out, err = run_cli(["help", "--all"])
+
+    status.should eq(0)
+    out.should contain("Developer and editor commands:")
+    out.should contain("emit")
+    out.should contain("dump")
+    out.should contain("lsp")
+    out.should_not contain("frontend")
+    out.should_not contain("core")
+    err.should be_empty
+  end
+
+  it "reports the compiled binary version through conventional flags" do
+    ["--version", "-V", "version"].each do |argument|
+      status, out, err = run_cli([argument])
+
+      status.should eq(0)
+      out.should eq("tango #{Tango::VERSION}\n")
+      err.should be_empty
+    end
   end
 end
 
 describe "tango semantic transport" do
   it "round-trips stdin through the canonical bundle stream" do
-    status, bundle, err = run_cli(["frontend", "-", "--emit-semantic", "-"], "puts 1\n")
+    status, bundle, err = run_semantic_producer(["-", "--emit-semantic", "-"], "puts 1\n")
 
     status.should eq(0)
     err.should be_empty
@@ -72,7 +117,7 @@ describe "tango semantic transport" do
     document.prelude_version.should eq("tango/#{Tango::VERSION}")
 
     with_cli_fake_toolchain("bundle-stream", "#!/bin/sh\ncat\n") do
-      status, transported, err = run_cli(["core", "-", "--emit-go"], bundle)
+      status, transported, err = run_semantic_consumer(["-", "--emit-go"], bundle)
       ordinary_status, ordinary, ordinary_err = run_cli(["emit", "go", "-"], "puts 1\n")
 
       status.should eq(0)
@@ -89,8 +134,7 @@ describe "tango semantic transport" do
     Dir.mkdir_p(root)
 
     begin
-      status, out, err = run_cli([
-        "frontend",
+      status, out, err = run_semantic_producer([
         File.join("examples", "fused_collection.tn"),
         "--emit-semantic",
         bundle_path,
@@ -102,8 +146,8 @@ describe "tango semantic transport" do
       Dir.glob("#{bundle_path}.tmp-*").should be_empty
 
       with_cli_fake_toolchain("bundle-profile", "#!/bin/sh\ncat\n") do
-        development_status, development, development_err = run_cli(["core", bundle_path, "--emit-go"])
-        release_status, release, release_err = run_cli(["core", "--release", bundle_path, "--emit-go"])
+        development_status, development, development_err = run_semantic_consumer([bundle_path, "--emit-go"])
+        release_status, release, release_err = run_semantic_consumer(["--release", bundle_path, "--emit-go"])
 
         development_status.should eq(0)
         release_status.should eq(0)
@@ -117,12 +161,12 @@ describe "tango semantic transport" do
   end
 
   it "carries frontend failures for the consumer to render" do
-    status, bundle, err = run_cli(["frontend", "-", "--emit-semantic", "-"], "puts(\n")
+    status, bundle, err = run_semantic_producer(["-", "--emit-semantic", "-"], "puts(\n")
 
     status.should eq(0)
     err.should be_empty
 
-    status, out, err = run_cli(["core", "-", "--emit-go"], bundle)
+    status, out, err = run_semantic_consumer(["-", "--emit-go"], bundle)
     status.should eq(1)
     out.should be_empty
     err.should contain("error:")
@@ -131,13 +175,13 @@ describe "tango semantic transport" do
   end
 
   it "rejects unsupported and malformed bundles without an exception trace" do
-    status, out, err = run_cli(["core", "-", "--emit-go"], %({"schema_version":2,"future":true}))
+    status, out, err = run_semantic_consumer(["-", "--emit-go"], %({"schema_version":2,"future":true}))
     status.should eq(1)
     out.should be_empty
     err.should contain("unsupported semantic bundle schema version 2")
     err.should_not contain("Unhandled exception")
 
-    status, out, err = run_cli(["core", "-", "--emit-go"], %({"schema_version":1))
+    status, out, err = run_semantic_consumer(["-", "--emit-go"], %({"schema_version":1))
     status.should eq(1)
     out.should be_empty
     err.should contain("invalid semantic bundle at $")
@@ -145,12 +189,12 @@ describe "tango semantic transport" do
   end
 
   it "rejects incomplete command shapes without reading or writing files" do
-    status, out, err = run_cli(["frontend", "examples/puts.tn"])
+    status, out, err = run_semantic_producer(["examples/puts.tn"])
     status.should eq(1)
     out.should be_empty
     err.should contain(Tango::CLI::SemanticTransport::Producer::USAGE)
 
-    status, out, err = run_cli(["core", "missing.json"])
+    status, out, err = run_semantic_consumer(["missing.json"])
     status.should eq(1)
     out.should be_empty
     err.should contain(Tango::CLI::SemanticTransport::Consumer::USAGE)

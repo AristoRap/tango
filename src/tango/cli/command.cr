@@ -5,12 +5,54 @@ module Tango
     end
 
     class Command
+      private enum Audience
+        Product
+        Developer
+      end
+
+      private record CommandDefinition,
+        name : String,
+        description : String,
+        audience : Audience
+
+      COMMANDS = [
+        CommandDefinition.new("run", "Compile and run a Tango program", Audience::Product),
+        CommandDefinition.new("build", "Compile a Tango executable", Audience::Product),
+        CommandDefinition.new("fmt", "Format Tango source files", Audience::Product),
+        CommandDefinition.new("doctor", "Check the compiler environment", Audience::Product),
+        CommandDefinition.new("clean", "Remove Tango build artifacts", Audience::Product),
+        CommandDefinition.new("emit", "Print generated target source", Audience::Developer),
+        CommandDefinition.new("dump", "Inspect compiler phases", Audience::Developer),
+        CommandDefinition.new("lsp", "Run the editor language server", Audience::Developer),
+      ]
+
       def initialize(argv : Array(String), @input : IO, @output : IO, @error : IO)
         @argv = argv.dup
       end
 
       def run : Int32
-        case command = @argv.shift?
+        command, help_requested, version_requested, invalid = parse_entrypoint
+
+        if invalid
+          @error.puts "tango: #{invalid}"
+          @error.puts "Run `tango --help` for usage."
+          return 1
+        end
+
+        if version_requested
+          unless @argv.empty?
+            @error.puts "tango: --version does not accept arguments"
+            return 1
+          end
+          @output.puts "tango #{::Tango::VERSION}"
+          return 0
+        end
+
+        if help_requested || command.nil?
+          return render_requested_help
+        end
+
+        case command
         when "run"
           run_program
         when "build"
@@ -25,19 +67,12 @@ module Tango
           clean
         when "fmt"
           FormatCommand.run(@argv, @input, @output, @error)
-        when "frontend"
-          SemanticTransport::Producer.run(@argv, @input, @output, @error)
-        when "core"
-          SemanticTransport::Consumer.run(@argv, @input, @output, @error)
         when "lsp"
           ::Tango::Lsp::Server.new(@input, @output, @error).run
           0
-        when "help", nil
-          help(@output)
-          0
         else
           @error.puts "unknown command: #{command}"
-          help(@error)
+          @error.puts "Run `tango --help` for usage."
           1
         end
       rescue ex : File::Error
@@ -54,6 +89,85 @@ module Tango
       private record SourceArgument,
         valid : Bool,
         path : String?
+
+      private def parse_entrypoint : {String?, Bool, Bool, String?}
+        command = nil
+        help_requested = false
+        version_requested = false
+        invalid = nil
+        arguments = @argv.dup
+        parser = OptionParser.new
+
+        COMMANDS.each do |definition|
+          name = definition.name
+          parser.on(name, definition.description) do
+            command = name
+            parser.stop
+          end
+        end
+        parser.on("help", "Show help") do
+          help_requested = true
+          parser.stop
+        end
+        parser.on("version", "Show the Tango version") do
+          version_requested = true
+          parser.stop
+        end
+        parser.on("-h", "--help", "Show help") { help_requested = true }
+        parser.on("-V", "--version", "Show the Tango version") { version_requested = true }
+        parser.invalid_option { |option| invalid = "unknown option: #{option}" }
+
+        parser.parse(arguments)
+        @argv = arguments
+        if command.nil? && !help_requested && !version_requested && !@argv.empty?
+          invalid = "unknown command: #{@argv.first}"
+        end
+        {command, help_requested, version_requested, invalid}
+      end
+
+      private def render_requested_help : Int32
+        include_developer = @argv == ["--all"]
+        unless @argv.empty? || include_developer
+          @error.puts "tango: usage: tango help [--all]"
+          return 1
+        end
+
+        @output.puts help_parser(include_developer)
+        0
+      end
+
+      private def help_parser(include_developer : Bool) : OptionParser
+        parser = OptionParser.new
+        parser.banner = "Tango #{::Tango::VERSION}\n\nUsage: tango <command> [options]\n\nCommands:"
+        parser.summary_indent = "  "
+        parser.summary_width = 12
+
+        COMMANDS.each do |definition|
+          next unless definition.audience.product?
+
+          parser.on(definition.name, definition.description) { }
+        end
+
+        if include_developer
+          parser.separator
+          parser.separator "Developer and editor commands:"
+          COMMANDS.each do |definition|
+            next unless definition.audience.developer?
+
+            parser.on(definition.name, definition.description) { }
+          end
+        end
+
+        parser.separator
+        parser.separator "Options:"
+        parser.on("-h", "--help", "Show this help") { }
+        parser.on("-V", "--version", "Show the Tango version") { }
+        unless include_developer
+          parser.separator
+          parser.separator "Run `tango help --all` to show developer and editor commands."
+        end
+        parser
+      end
 
       private def run_program : Int32
         options = parse_program_options(build: false)
@@ -276,20 +390,6 @@ module Tango
         release ? Compiler::CompilationProfile::Release : Compiler::CompilationProfile::Development
       end
 
-      private def help(io : IO)
-        io.puts "usage:"
-        io.puts "  tango run [file|-] [--race] [--release]"
-        io.puts "  tango build [file|-] [-o output] [--race] [--release]"
-        io.puts "  tango emit go [--release] [file|-]"
-        io.puts "  tango dump nir|facts|plans|lir [--trace] [--release] [file|-]"
-        io.puts "  tango lsp"
-        io.puts "  tango doctor [--go-path|--go-min]"
-        io.puts "  tango clean"
-        io.puts "  tango fmt [--check] [path ...]"
-        io.puts "internal/bootstrap:"
-        io.puts "  tango frontend [file|-] --emit-semantic bundle|-"
-        io.puts "  tango core [--release] bundle|- --emit-go"
-      end
     end
   end
 end
