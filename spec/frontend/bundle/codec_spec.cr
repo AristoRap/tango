@@ -42,6 +42,12 @@ describe Tango::Frontend::Bundle::Codec do
     field_error.location.should eq("$")
     field_error.message.to_s.should contain(%(unknown field "surprise"))
 
+    source_field_error = expect_raises(Tango::Frontend::Bundle::CodecError) do
+      Tango::Frontend::Bundle::Codec.load(encoded.sub(%("path":), %("surprise":true,"path":)))
+    end
+    source_field_error.location.should eq("$.source_table[0].surprise")
+    source_field_error.message.to_s.should contain(%(Unknown JSON attribute: surprise))
+
     node_field_error = expect_raises(Tango::Frontend::Bundle::CodecError) do
       Tango::Frontend::Bundle::Codec.load(encoded.sub(%("kind":"int_literal"), %("kind":"int_literal","surprise":true)))
     end

@@ -16,61 +16,21 @@ module Tango
           end
 
           def write_range(builder : JSON::Builder, range : Tango::Source::Range) : Nil
-            builder.object do
-              builder.field("path", range.path)
-              builder.field("start_offset", range.start_offset)
-              builder.field("end_offset", range.end_offset)
-              builder.field("line") { write_nullable(builder, range.line) { |line| builder.number(line) } }
-              builder.field("column") { write_nullable(builder, range.column) { |column| builder.number(column) } }
-            end
+            Transport::RangeData.new(range).to_json(builder)
           end
 
           def read_range(value : JSON::Any, location : String) : Tango::Source::Range
-            object = object(value, location)
-            expect_keys(object, %w(path start_offset end_offset line column), location)
-            Tango::Source::Range.new(
-              string(required(object, "path", location), "#{location}.path"),
-              int32(required(object, "start_offset", location), "#{location}.start_offset"),
-              int32(required(object, "end_offset", location), "#{location}.end_offset"),
-              optional_int32(required(object, "line", location), "#{location}.line"),
-              optional_int32(required(object, "column", location), "#{location}.column")
-            )
+            read_data(value, location, Transport::RangeData).to_range
           end
 
           def write_type(builder : JSON::Builder, type : IR::Type) : Nil
-            builder.object do
-              builder.field("family", type.family.to_s)
-              builder.field("width") do
-                write_nullable(builder, type.width) { |width| builder.string(width.to_s) }
-              end
-              builder.field("name") do
-                write_nullable(builder, type.name) { |name| builder.string(name) }
-              end
-              builder.field("members") do
-                builder.array { type.members.each { |member| write_type(builder, member) } }
-              end
-              builder.field("type_args") do
-                builder.array { type.type_args.each { |argument| write_type(builder, argument) } }
-              end
-            end
+            Transport::TypeData.new(type).to_json(builder)
           end
 
           def read_type(value : JSON::Any, location : String) : IR::Type
-            object = object(value, location)
-            expect_keys(object, %w(family width name members type_args), location)
-            IR::Type.new(
-              parse_enum(IR::Type::Family, required(object, "family", location), "#{location}.family"),
-              optional_string(required(object, "width", location), "#{location}.width").try do |width|
-                parse_enum_value(IR::Type::Width, width, "#{location}.width")
-              end,
-              optional_string(required(object, "name", location), "#{location}.name"),
-              array(required(object, "members", location), "#{location}.members").map_with_index do |member, index|
-                read_type(member, "#{location}.members[#{index}]")
-              end,
-              array(required(object, "type_args", location), "#{location}.type_args").map_with_index do |argument, index|
-                read_type(argument, "#{location}.type_args[#{index}]")
-              end
-            )
+            read_data(value, location, Transport::TypeData).to_type
+          rescue error : ArgumentError
+            invalid(location, error.message || "invalid type")
           end
 
           def write_method_site(builder : JSON::Builder, site : IR::NIR::MethodSite) : Nil
@@ -295,8 +255,28 @@ module Tango
             invalid(location, "unknown #{type} value #{value.inspect}")
           end
 
+          def read_data(value : JSON::Any, location : String, type : T.class) : T forall T
+            type.from_json(value.to_json)
+          rescue error : JSON::SerializableError
+            invalid(serialization_location(error, location), serialization_detail(error))
+          end
+
           def invalid(location : String, detail : String) : NoReturn
             raise CodecError.new(location, detail)
+          end
+
+          private def serialization_location(error : JSON::SerializableError, location : String) : String
+            attributes = [] of String
+            current : Exception? = error
+            while serializable = current.as?(JSON::SerializableError)
+              serializable.attribute.try { |attribute| attributes << attribute }
+              current = serializable.cause
+            end
+            attributes.reduce(location) { |path, attribute| "#{path}.#{attribute}" }
+          end
+
+          private def serialization_detail(error : JSON::SerializableError) : String
+            error.message.to_s.lines.first? || "invalid generated transport value"
           end
         end
       end

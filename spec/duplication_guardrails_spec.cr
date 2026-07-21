@@ -26,30 +26,28 @@ module DuplicationGuardrails
   end
 
   REPEATED_FIELD_PAIRS = {
-    "src/tango/ir/lir/program.cr|name+type"              => Review.new(%w(Global Param StructType UnionType), :intentional, "Typed LIR declarations preserve both target names and language identity."),
-    "src/tango/ir/lir/program.cr|reference+type"         => Review.new(%w(ArrayType HashType StructType), :intentional, "Representation descriptors pair concrete type identity with reference policy."),
-    "src/tango/ir/lir/value.cr|source+value"             => Review.new(%w(DispatchRelationValue NumericConvert ScalarStringify), :intentional, "Distinct operation wrappers retain their typed input and source relation."),
-    "src/tango/ir/lir/value.cr|hash+key"                 => Review.new(%w(HashFetch HashGet HashHasKey HashSet), :debt, "Keyed hash operations repeat receiver and key state; review a shared shape when this family grows."),
-    "src/tango/ir/nir/hash.cr|hash+key"                  => Review.new(%w(HashFetch HashGet HashHasKey HashSet), :debt, "Keyed hash operations repeat receiver and key state; review a shared shape when this family grows."),
-    "src/tango/planning/plans.cr|reference+type"         => Review.new(%w(ArrayRepr Constructor HashRepr), :intentional, "Each representation plan pairs its language type with a reference policy."),
-    "src/tango/ir/nir/call.cr|name+name_span"            => Review.new(%w(BlockArg BlockParam Call), :intentional, "Named syntax nodes retain both semantic names and precise source spans."),
-    "src/tango/ir/nir/namespace.cr|name_span+path"       => Review.new(%w(Constant ConstantReference Namespace TypeAlias TypeAliasReference), :intentional, "Namespace-owned declarations and references retain segmented identity plus their exact source token."),
-    "src/tango/lsp/analysis_codec.cr|documentation+name" => Review.new(%w(DeclarationData SurfaceDeclarationData SurfaceParameterData), :intentional, "Serialized editor declarations carry display names and documentation independently."),
-    "src/tango/lsp/analysis_codec.cr|kind+range"         => Review.new(%w(OccurrenceData SemanticTokenData SurfaceDeclarationData SurfaceScopeData), :intentional, "Serialized editor facts need both source ranges and protocol-specific kinds."),
+    "src/tango/ir/lir/program.cr|name+type"        => Review.new(%w(Global Param StructType UnionType), :intentional, "Typed LIR declarations preserve both target names and language identity."),
+    "src/tango/ir/lir/program.cr|reference+type"   => Review.new(%w(ArrayType HashType StructType), :intentional, "Representation descriptors pair concrete type identity with reference policy."),
+    "src/tango/ir/lir/value.cr|source+value"       => Review.new(%w(DispatchRelationValue NumericConvert ScalarStringify), :intentional, "Distinct operation wrappers retain their typed input and source relation."),
+    "src/tango/ir/lir/value.cr|hash+key"           => Review.new(%w(HashFetch HashGet HashHasKey HashSet), :debt, "Keyed hash operations repeat receiver and key state; review a shared shape when this family grows."),
+    "src/tango/ir/nir/hash.cr|hash+key"            => Review.new(%w(HashFetch HashGet HashHasKey HashSet), :debt, "Keyed hash operations repeat receiver and key state; review a shared shape when this family grows."),
+    "src/tango/planning/plans.cr|reference+type"   => Review.new(%w(ArrayRepr Constructor HashRepr), :intentional, "Each representation plan pairs its language type with a reference policy."),
+    "src/tango/ir/nir/call.cr|name+name_span"      => Review.new(%w(BlockArg BlockParam Call), :intentional, "Named syntax nodes retain both semantic names and precise source spans."),
+    "src/tango/ir/nir/namespace.cr|name_span+path" => Review.new(%w(Constant ConstantReference Namespace TypeAlias TypeAliasReference), :intentional, "Namespace-owned declarations and references retain segmented identity plus their exact source token."),
   }
 
   CROSS_CLASS_FIELD_CLUSTERS = {
-    "src/tango/ir/lir/program.cr#Func <> src/tango/ir/nir/def.cr#Def"                                           => Review.new(%w(body name params return_type), :intentional, "Callable structure is represented explicitly on both sides of lowering."),
-    "src/tango/ir/lir/program.cr#Func <> src/tango/target/go/ir.cr#Func"                                        => Review.new(%w(body name params return_type), :intentional, "Structured target functions mirror the callable shape they emit."),
-    "src/tango/ir/lir/program.cr#StructType <> src/tango/planning/plans.cr#ClassLayout"                         => Review.new(%w(exception_ancestors fields identity_padding name reference), :intentional, "Planning and LIR expose adjacent views of the same committed class layout."),
-    "src/tango/ir/lir/program.cr#EnumType <> src/tango/planning/plans.cr#EnumRepr"                              => Review.new(%w(base_type members target_name type), :intentional, "Planning selects enum representation data and LIR copies the complete commitment for target-only consumption."),
-    "src/tango/ir/lir/stmt.cr#Arm <> src/tango/ir/nir/concurrency.cr#ChannelOp"                                 => Review.new(%w(channel element kind value), :intentional, "Concurrency operations retain the same semantic payload across lowering."),
-    "src/tango/ir/nir/def.cr#Def <> src/tango/target/go/ir.cr#Func"                                             => Review.new(%w(body name params return_type), :intentional, "Language and target callables intentionally keep parallel typed signatures."),
-    "src/tango/ir/nir/def.cr#Def <> src/tango/lsp/analysis_codec.cr#MethodSiteData"                             => Review.new(%w(name name_span owner return_type), :intentional, "Editor method-site data serializes the definition identity needed by clients."),
-    "src/tango/ir/type.cr#Type <> src/tango/lsp/analysis_codec.cr#TypeData"                                     => Review.new(%w(family members name type_args width), :intentional, "The editor codec provides a transport representation of structured types."),
-    "src/tango/lsp/analysis_codec.cr#DeclarationData <> src/tango/lsp/analysis_codec.cr#SurfaceDeclarationData" => Review.new(%w(documentation name range visibility), :intentional, "Semantic and syntax-surface declarations serve different recovery states."),
-    "src/tango/lsp/analysis_codec.cr#FileData <> src/tango/source/file.cr#File"                                 => Review.new(%w(code identity path stable_path), :intentional, "The worker codec transports immutable source-file identity and contents."),
-    "src/tango/lsp/analysis_codec.cr#Payload <> src/tango/source/compilation_unit.cr#CompilationUnit"           => Review.new(%w(edges entrypoint files requires), :intentional, "The worker payload serializes the compilation-unit graph."),
+    "src/tango/ir/lir/program.cr#Func <> src/tango/ir/nir/def.cr#Def"                                              => Review.new(%w(body name params return_type), :intentional, "Callable structure is represented explicitly on both sides of lowering."),
+    "src/tango/ir/lir/program.cr#Func <> src/tango/target/go/ir.cr#Func"                                           => Review.new(%w(body name params return_type), :intentional, "Structured target functions mirror the callable shape they emit."),
+    "src/tango/ir/lir/program.cr#StructType <> src/tango/planning/plans.cr#ClassLayout"                            => Review.new(%w(exception_ancestors fields identity_padding name reference), :intentional, "Planning and LIR expose adjacent views of the same committed class layout."),
+    "src/tango/ir/lir/program.cr#EnumType <> src/tango/planning/plans.cr#EnumRepr"                                 => Review.new(%w(base_type members target_name type), :intentional, "Planning selects enum representation data and LIR copies the complete commitment for target-only consumption."),
+    "src/tango/ir/lir/stmt.cr#Arm <> src/tango/ir/nir/concurrency.cr#ChannelOp"                                    => Review.new(%w(channel element kind value), :intentional, "Concurrency operations retain the same semantic payload across lowering."),
+    "src/tango/ir/nir/def.cr#Def <> src/tango/target/go/ir.cr#Func"                                                => Review.new(%w(body name params return_type), :intentional, "Language and target callables intentionally keep parallel typed signatures."),
+    "src/tango/ir/nir/def.cr#Def <> src/tango/lsp/analysis_codec.cr#MethodSiteData"                                => Review.new(%w(name name_span owner return_type), :intentional, "Editor method-site data serializes the definition identity needed by clients."),
+    "src/tango/ir/type.cr#Type <> src/tango/transport/value_data.cr#TypeData"                                      => Review.new(%w(family members name type_args width), :intentional, "The shared transport schema represents structured compiler types at process and bundle boundaries."),
+    "src/tango/lsp/analysis_codec.cr#DeclarationData <> src/tango/transport/syntax_data.cr#SurfaceDeclarationData" => Review.new(%w(documentation name range visibility), :intentional, "Semantic declarations and shared syntax-surface declarations serve different recovery states."),
+    "src/tango/lsp/analysis_codec.cr#Payload <> src/tango/source/compilation_unit.cr#CompilationUnit"              => Review.new(%w(edges entrypoint files requires), :intentional, "The worker payload serializes the compilation-unit graph."),
+    "src/tango/source/file.cr#File <> src/tango/transport/source_data.cr#FileData"                                 => Review.new(%w(code identity path stable_path), :intentional, "The shared transport schema carries immutable source-file identity and contents."),
   }
 
   COLLECTION_STATE_DEBT = {} of String => Review

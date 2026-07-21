@@ -1,4 +1,5 @@
 require "json"
+require "../transport"
 
 module Tango
   module Lsp
@@ -7,56 +8,22 @@ module Tango
     # objects, NIR, Facts, Plans, and LIR; requests consume only the source,
     # diagnostics, syntax catalog, and semantic editor index they need.
     module AnalysisCodec
-      class RangeData
-        include JSON::Serializable
-        getter path : String
-        getter start_offset : Int32
-        getter end_offset : Int32
-        getter line : Int32?
-        getter column : Int32?
-
-        def initialize(range : Source::Range)
-          @path = range.path
-          @start_offset = range.start_offset
-          @end_offset = range.end_offset
-          @line = range.line
-          @column = range.column
-        end
-
-        def to_range : Source::Range
-          Source::Range.new(@path, @start_offset, @end_offset, @line, @column)
-        end
-      end
-
-      class TypeData
-        include JSON::Serializable
-        getter family : String
-        getter width : String?
-        getter name : String?
-        getter members : Array(TypeData)
-        getter type_args : Array(TypeData)
-
-        def initialize(type : IR::Type)
-          @family = type.family.to_s
-          @width = type.width.try(&.to_s)
-          @name = type.name
-          @members = type.members.map { |member| TypeData.new(member).as(TypeData) }
-          @type_args = type.type_args.map { |argument| TypeData.new(argument).as(TypeData) }
-        end
-
-        def to_type : IR::Type
-          IR::Type.new(
-            IR::Type::Family.parse(@family),
-            @width.try { |value| IR::Type::Width.parse(value) },
-            @name,
-            @members.map(&.to_type),
-            @type_args.map(&.to_type)
-          )
-        end
-      end
+      alias RangeData = Transport::RangeData
+      alias TypeData = Transport::TypeData
+      alias SurfaceParameterData = Transport::SurfaceParameterData
+      alias SurfaceDeclarationData = Transport::SurfaceDeclarationData
+      alias SurfaceScopeData = Transport::SurfaceScopeData
+      alias DiagnosticData = Transport::DiagnosticData
+      alias RelatedDiagnosticData = Transport::RelatedDiagnosticData
+      alias DiagnosticFixEditData = Transport::DiagnosticFixEditData
+      alias DiagnosticFixData = Transport::DiagnosticFixData
+      alias FileData = Transport::FileData
+      alias RequireData = Transport::RequireData
+      alias EdgeData = Transport::EdgeData
 
       class SymbolData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter declaration : String
         getter kind : String
         getter member : String?
@@ -78,6 +45,7 @@ module Tango
 
       class MethodSiteData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter owner : TypeData
         getter name : String
         getter argument_types : Array(TypeData)
@@ -108,6 +76,7 @@ module Tango
 
       class IndexParameterData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter name : String
         getter type : TypeData
 
@@ -123,6 +92,7 @@ module Tango
 
       class SignatureData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter owner : TypeData?
         getter parameters : Array(IndexParameterData)
         getter return_type : TypeData?
@@ -147,6 +117,7 @@ module Tango
 
       class DeclarationData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter id : SymbolData
         getter name : String
         getter range : RangeData
@@ -180,6 +151,7 @@ module Tango
 
       class ReferenceData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter range : RangeData
         getter node : String
         getter declaration : SymbolData?
@@ -201,6 +173,7 @@ module Tango
 
       class OccurrenceData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter range : RangeData
         getter node : String
         getter kind : String
@@ -222,6 +195,7 @@ module Tango
 
       class SemanticNodeData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter node : String
         getter type : TypeData?
         getter method_site : MethodSiteData?
@@ -243,6 +217,7 @@ module Tango
 
       class ReceiverOccurrenceData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter range : RangeData
         getter type : TypeData
         getter receiver_kind : String
@@ -270,6 +245,7 @@ module Tango
 
       class InlayHintData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter anchor : RangeData
         getter label : String
         getter kind : String
@@ -291,6 +267,7 @@ module Tango
 
       class SemanticTokenData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter range : RangeData
         getter kind : String
         getter declaration : Bool
@@ -317,6 +294,7 @@ module Tango
       # item `data`, so follow-up requests never recover identity from a label.
       class HierarchyKeyData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter type : TypeData
         getter declaration : RangeData
 
@@ -332,6 +310,7 @@ module Tango
 
       class HierarchyItemData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter key : HierarchyKeyData
         getter item_kind : String
         getter declaration_range : RangeData
@@ -356,6 +335,7 @@ module Tango
 
       class HierarchyRelationData
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter subtype : HierarchyKeyData
         getter supertype : HierarchyKeyData
         getter kind : String
@@ -378,259 +358,9 @@ module Tango
         end
       end
 
-      class SurfaceParameterData
-        include JSON::Serializable
-        getter name : String
-        getter explicit_type : String?
-        getter documentation : String?
-
-        def initialize(parameter : Frontend::SyntaxSurface::Parameter)
-          @name = parameter.name
-          @explicit_type = parameter.explicit_type
-          @documentation = parameter.documentation
-        end
-
-        def to_parameter : Frontend::SyntaxSurface::Parameter
-          Frontend::SyntaxSurface::Parameter.new(@name, @explicit_type, @documentation)
-        end
-      end
-
-      class SurfaceDeclarationData
-        include JSON::Serializable
-        getter name : String
-        getter kind : String
-        getter range : RangeData
-        getter selection_range : RangeData
-        getter container : String?
-        getter detail : String?
-        getter documentation : String?
-        getter explicit_type : String?
-        getter outline : Bool
-        getter visibility : String
-        getter callable_kind : String?
-        getter parameters : Array(SurfaceParameterData)
-        getter scope_id : String?
-
-        def initialize(declaration : Frontend::SyntaxSurface::Declaration)
-          @name = declaration.name
-          @kind = declaration.kind.to_s
-          @range = RangeData.new(declaration.range)
-          @selection_range = RangeData.new(declaration.selection_range)
-          @container = declaration.container
-          @detail = declaration.detail
-          @documentation = declaration.documentation
-          @explicit_type = declaration.explicit_type
-          @outline = declaration.outline
-          @visibility = declaration.visibility.to_s
-          @callable_kind = declaration.callable_kind.try(&.to_s)
-          @parameters = declaration.parameters.map { |parameter| SurfaceParameterData.new(parameter) }
-          @scope_id = declaration.scope_id
-        end
-
-        def to_declaration : Frontend::SyntaxSurface::Declaration
-          Frontend::SyntaxSurface::Declaration.new(
-            @name,
-            Frontend::SyntaxSurface::DeclarationKind.parse(@kind),
-            @range.to_range,
-            @selection_range.to_range,
-            @container,
-            @detail,
-            @documentation,
-            @explicit_type,
-            @outline,
-            Frontend::SyntaxSurface::Visibility.parse(@visibility),
-            @callable_kind.try { |kind| Frontend::SyntaxSurface::CallableKind.parse(kind) },
-            @parameters.map(&.to_parameter),
-            @scope_id
-          )
-        end
-      end
-
-      class SurfaceScopeData
-        include JSON::Serializable
-        getter kind : String
-        getter range : RangeData
-        getter container : String?
-        getter id : String?
-
-        def initialize(scope : Frontend::SyntaxSurface::Scope)
-          @kind = scope.kind.to_s
-          @range = RangeData.new(scope.range)
-          @container = scope.container
-          @id = scope.id
-        end
-
-        def to_scope : Frontend::SyntaxSurface::Scope
-          Frontend::SyntaxSurface::Scope.new(
-            Frontend::SyntaxSurface::ScopeKind.parse(@kind),
-            @range.to_range,
-            @container,
-            @id
-          )
-        end
-      end
-
-      class DiagnosticData
-        include JSON::Serializable
-        getter origin : String
-        getter severity : String
-        getter code : String
-        getter message : String
-        getter file : String?
-        getter line : Int32
-        getter column : Int32
-        getter size : Int32
-        getter detail : String?
-        getter unnecessary : Bool
-        getter range : RangeData?
-        getter related : Array(RelatedDiagnosticData)
-        getter hints : Array(String)
-        getter fix : DiagnosticFixData?
-
-        def initialize(diagnostic : Diagnostic)
-          @origin = diagnostic.origin.to_s
-          @severity = diagnostic.severity.to_s
-          @code = diagnostic.code
-          @message = diagnostic.message
-          @file = diagnostic.file
-          @line = diagnostic.line
-          @column = diagnostic.column
-          @size = diagnostic.size
-          @detail = diagnostic.detail
-          @unnecessary = diagnostic.unnecessary
-          @range = diagnostic.range.try { |range| RangeData.new(range) }
-          @related = diagnostic.related.map { |range, message| RelatedDiagnosticData.new(range, message) }
-          @hints = diagnostic.hints
-          @fix = diagnostic.fix.try { |fix| DiagnosticFixData.new(fix) }
-        end
-
-        def to_diagnostic : Diagnostic
-          Diagnostic.new(
-            Diagnostic::Origin.parse(@origin),
-            Diagnostic::Severity.parse(@severity),
-            @code,
-            @message,
-            @file,
-            @line,
-            @column,
-            @size,
-            @detail,
-            @unnecessary,
-            @range.try(&.to_range),
-            @related.map(&.to_related),
-            hints: @hints,
-            fix: @fix.try(&.to_fix)
-          )
-        end
-      end
-
-      class RelatedDiagnosticData
-        include JSON::Serializable
-        getter range : RangeData
-        getter message : String
-
-        def initialize(range : Source::Range, @message : String)
-          @range = RangeData.new(range)
-        end
-
-        def to_related : {Source::Range, String}
-          {@range.to_range, @message}
-        end
-      end
-
-      class DiagnosticFixEditData
-        include JSON::Serializable
-        getter range : RangeData
-        getter new_text : String
-
-        def initialize(edit : Diagnostic::FixEdit)
-          @range = RangeData.new(edit.range)
-          @new_text = edit.new_text
-        end
-
-        def to_edit : Diagnostic::FixEdit
-          Diagnostic::FixEdit.new(@range.to_range, @new_text)
-        end
-      end
-
-      class DiagnosticFixData
-        include JSON::Serializable
-        getter kind : String
-        getter title : String
-        getter edits : Array(DiagnosticFixEditData)
-
-        def initialize(fix : Diagnostic::Fix)
-          @kind = fix.kind.to_s
-          @title = fix.title
-          @edits = fix.edits.map { |edit| DiagnosticFixEditData.new(edit) }
-        end
-
-        def to_fix : Diagnostic::Fix
-          Diagnostic::Fix.new(
-            Diagnostic::FixKind.parse(@kind),
-            @title,
-            @edits.map(&.to_edit)
-          )
-        end
-      end
-
-      class FileData
-        include JSON::Serializable
-        getter path : String
-        getter code : String
-        getter identity : String
-        getter stable_path : Bool
-
-        def initialize(file : Source::File)
-          @path = file.path
-          @code = file.code
-          @identity = file.identity
-          @stable_path = file.stable_path?
-        end
-
-        def to_file : Source::File
-          Source::File.new(@path, @code, @identity, @stable_path)
-        end
-      end
-
-      class RequireData
-        include JSON::Serializable
-        getter from : String
-        getter request : String
-        getter range : RangeData
-
-        def initialize(directive : Source::RequireDirective)
-          @from = directive.from
-          @request = directive.request
-          @range = RangeData.new(directive.range)
-        end
-
-        def to_directive : Source::RequireDirective
-          Source::RequireDirective.new(@from, @request, @range.to_range)
-        end
-      end
-
-      class EdgeData
-        include JSON::Serializable
-        getter from : String
-        getter request : String
-        getter to : String
-        getter range : RangeData
-
-        def initialize(edge : Source::RequireEdge)
-          @from = edge.from
-          @request = edge.request
-          @to = edge.to
-          @range = RangeData.new(edge.range)
-        end
-
-        def to_edge : Source::RequireEdge
-          Source::RequireEdge.new(@from, @request, @to, @range.to_range)
-        end
-      end
-
       class Payload
         include JSON::Serializable
+        include JSON::Serializable::Strict
         getter entrypoint : String
         getter files : Array(FileData)
         getter requires : Array(RequireData)

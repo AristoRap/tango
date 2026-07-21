@@ -1,4 +1,5 @@
 require "json"
+require "../../transport"
 
 require "./codec/value"
 require "./codec/nir_encoder"

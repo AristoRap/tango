@@ -12,7 +12,6 @@ module ArchitectureRegressions
     "src/tango/compiler/editor/index.cr"   => 785,
     "src/tango/lowering/to_lir.cr"         => 734,
     "src/tango/lsp/server.cr"              => 733,
-    "src/tango/lsp/analysis_codec.cr"      => 725,
   }
 
   def self.read(path : String) : String
@@ -82,7 +81,7 @@ describe "architecture audit regressions" do
       "Diagnostic"
     )
     transported = ArchitectureRegressions.getters(
-      ArchitectureRegressions.read("src/tango/lsp/analysis_codec.cr"),
+      ArchitectureRegressions.read("src/tango/transport/diagnostic_data.cr"),
       "DiagnosticData"
     )
 
@@ -91,6 +90,33 @@ describe "architecture audit regressions" do
     server.should contain("d.related.map")
     server.should contain("d.hints.map")
     server.should contain("diagnostic.range")
+  end
+
+  it "uses one strict transport authority for shared worker and bundle values" do
+    codec = ArchitectureRegressions.read("src/tango/lsp/analysis_codec.cr")
+    bundle = ArchitectureRegressions.read("src/tango/frontend/bundle/codec/document.cr")
+    shared = %w(value_data source_data syntax_data diagnostic_data).map do |name|
+      ArchitectureRegressions.read("src/tango/transport/#{name}.cr")
+    end.join("\n")
+
+    %w(
+      RangeData
+      TypeData
+      SurfaceParameterData
+      SurfaceDeclarationData
+      SurfaceScopeData
+      DiagnosticData
+      FileData
+      RequireData
+      EdgeData
+    ).each do |name|
+      codec.should contain("alias #{name} = Transport::#{name}")
+      codec.should_not match(/class #{name}\b/)
+    end
+    bundle.should contain("Transport::SurfaceData")
+    bundle.should contain("Transport::DiagnosticData")
+    bundle.should contain("Transport::FileData")
+    shared.scan("include JSON::Serializable::Strict").size.should eq(13)
   end
 
   it "derives strict NIR fields from decoder consumption" do

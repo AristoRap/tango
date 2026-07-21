@@ -245,6 +245,15 @@ describe "editor recovery queries" do
     restored.diagnostics.first.related.should eq([{related, "declared here"}])
     restored.diagnostics.first.hints.should eq(["fix it"])
 
+    unknown_payload = encoded.sub("{", %({"surprise":true,))
+    expect_raises(JSON::SerializableError) { Tango::Lsp::AnalysisCodec.load(unknown_payload) }
+
+    unknown_diagnostic = encoded.sub(
+      %("origin":"Frontend"),
+      %("origin":"Frontend","surprise":true)
+    )
+    expect_raises(JSON::SerializableError) { Tango::Lsp::AnalysisCodec.load(unknown_diagnostic) }
+
     malformed = encoded.sub(%("entrypoint":"/virtual/main.tn"), %("entrypoint":"/virtual/missing.tn"))
     expect_raises(ArgumentError) { Tango::Lsp::AnalysisCodec.load(malformed) }
   end
