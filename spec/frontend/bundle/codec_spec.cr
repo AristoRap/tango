@@ -42,6 +42,18 @@ describe Tango::Frontend::Bundle::Codec do
     field_error.location.should eq("$")
     field_error.message.to_s.should contain(%(unknown field "surprise"))
 
+    node_field_error = expect_raises(Tango::Frontend::Bundle::CodecError) do
+      Tango::Frontend::Bundle::Codec.load(encoded.sub(%("kind":"int_literal"), %("kind":"int_literal","surprise":true)))
+    end
+    node_field_error.location.should eq("$.normalized_nir.body[0]")
+    node_field_error.message.to_s.should contain(%(unknown field "surprise"))
+
+    metadata_error = expect_raises(Tango::Frontend::Bundle::CodecError) do
+      Tango::Frontend::Bundle::Codec.load(encoded.sub(%(,"method_site":null), ""))
+    end
+    metadata_error.location.should eq("$.normalized_nir.body[0]")
+    metadata_error.message.to_s.should contain("missing expression metadata")
+
     kind_error = expect_raises(Tango::Frontend::Bundle::CodecError) do
       Tango::Frontend::Bundle::Codec.load(encoded.sub(%("kind":"int_literal"), %("kind":"future_node")))
     end

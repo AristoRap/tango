@@ -92,6 +92,14 @@ describe "architecture audit regressions" do
     server.should contain("diagnostic.range")
   end
 
+  it "derives strict NIR fields from decoder consumption" do
+    decoder = ArchitectureRegressions.read("src/tango/frontend/bundle/codec/nir_decoder.cr")
+    decoder.should contain("reject_unconsumed")
+    decoder.should_not contain("expected_fields")
+    decoder.should_not contain("STMT_FIELDS")
+    decoder.should_not contain("EXPR_FIELDS")
+  end
+
   it "uses one canonical path-identity implementation" do
     %w(
       src/tango/frontend/source_graph.cr

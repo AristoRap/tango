@@ -663,9 +663,9 @@ describe "NIR/LIR node inventory" do
     end.sort
 
     encoder_tags = encoder.split("private def kind", 2).last.scan(/then "([a-z_]+)"/).map(&.[1]).sort
-    decoder_branches = decoder.split("private def expected_fields", 2).last
+    decoder_branches = decoder.split("private def decode_node", 2).last.split("private def read_call", 2).first
     decoder_tags = decoder_branches.lines
-      .select { |line| line.lstrip.starts_with?("when ") }
+      .select { |line| line.starts_with?("            when ") }
       .flat_map { |line| line.scan(/"([a-z_]+)"/).map(&.[1]) }
       .sort
 

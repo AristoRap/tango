@@ -2,13 +2,32 @@ module Tango
   module Frontend
     module Bundle
       module Codec
-        # Strict schema-v1 NIR reader. Every node kind owns an exact field set;
-        # reconstruction invokes only ordinary NIR constructors.
+        # Strict schema-v1 NIR reader. Reconstruction invokes only ordinary NIR
+        # constructors, and each node rejects fields its constructor did not
+        # consume instead of maintaining a second expected-field inventory.
         module NirDecoder
           extend self
 
-          STMT_FIELDS = %w(kind id span)
-          EXPR_FIELDS = %w(kind id span type method_site)
+          private class NodeObject
+            getter values : Hash(String, JSON::Any)
+
+            def initialize(@values : Hash(String, JSON::Any))
+              @consumed = Set(String).new
+            end
+
+            def has_key?(key : String) : Bool
+              @values.has_key?(key)
+            end
+
+            def consume(key : String) : Nil
+              @consumed << key
+            end
+
+            def reject_unconsumed(location : String) : Nil
+              unknown = (@values.keys - @consumed.to_a).sort
+              Value.invalid(location, "unknown field #{unknown.first.inspect}") unless unknown.empty?
+            end
+          end
 
           def read_program(value : JSON::Any, location : String) : IR::NIR::Program
             object = Value.object(value, location)
@@ -35,16 +54,31 @@ module Tango
           end
 
           def read_node(value : JSON::Any, location : String) : IR::NIR::Stmt
-            object = Value.object(value, location)
-            kind = Value.string(Value.required(object, "kind", location), "#{location}.kind")
-            Value.expect_keys(object, expected_fields(kind, location), location)
-            id = NodeId.new(Value.string(Value.required(object, "id", location), "#{location}.id"))
+            object = NodeObject.new(Value.object(value, location))
+            kind = text(object, "kind", location)
+            id = NodeId.new(text(object, "id", location))
             span = optional_range(object, "span", location)
-            type = expression_kind?(kind) ? optional_type(object, "type", location) : nil
-            method_site = if expression_kind?(kind)
+            expression_fields = object.has_key?("method_site")
+            type = expression_fields ? optional_type(object, "type", location) : nil
+            method_site = if expression_fields
                             optional_method_site(object, "method_site", location)
                           end
 
+            node = decode_node(object, location, kind, id, type, span, method_site)
+            if node.is_a?(IR::NIR::Expr)
+              Value.invalid(location, "missing expression metadata") unless expression_fields
+            elsif expression_fields
+              Value.invalid(location, "statement has expression metadata")
+            end
+            object.reject_unconsumed(location)
+            node
+          rescue error : CodecError | UnsupportedVersionError
+            raise error
+          rescue error
+            Value.invalid(location, error.message || error.class.name)
+          end
+
+          private def decode_node(object, location, kind, id, type, span, method_site) : IR::NIR::Stmt
             case kind
             when "block"
               IR::NIR::Block.new(id, read_nodes(field(object, "body", location), "#{location}.body"), span)
@@ -359,10 +393,6 @@ module Tango
             else
               Value.invalid("#{location}.kind", "unknown NIR node kind #{kind.inspect}")
             end
-          rescue error : CodecError | UnsupportedVersionError
-            raise error
-          rescue error
-            Value.invalid(location, error.message || error.class.name)
           end
 
           private def read_call(object, location, id, type, span, method_site) : IR::NIR::Call
@@ -465,7 +495,12 @@ module Tango
             node.as?(T) || Value.invalid(location, "expected #{type}, got #{node.class.name}")
           end
 
-          private def field(object, key, location) : JSON::Any
+          private def field(object : NodeObject, key, location) : JSON::Any
+            object.consume(key)
+            Value.required(object.values, key, location)
+          end
+
+          private def field(object : Hash(String, JSON::Any), key, location) : JSON::Any
             Value.required(object, key, location)
           end
 
@@ -507,74 +542,6 @@ module Tango
             Value.array(field(object, key, location), "#{location}.#{key}").map_with_index do |value, index|
               Value.read_conformance(value, "#{location}.#{key}[#{index}]")
             end
-          end
-
-          private def expression_kind?(kind : String) : Bool
-            !%w(block param block_arg block_param return break next field_initializer class enum namespace type_alias type_alias_reference constant def while).includes?(kind)
-          end
-
-          private def expected_fields(kind : String, location : String) : Array(String)
-            base = expression_kind?(kind) ? EXPR_FIELDS : STMT_FIELDS
-            extra = case kind
-                    when "block"                                                                                 then %w(body)
-                    when "local", "class_ref"                                                                    then %w(name name_span)
-                    when "enum_member"                                                                           then %w(enum_type name name_span)
-                    when "constant_reference"                                                                    then %w(path name_span)
-                    when "instance_var"                                                                          then %w(name name_span owner)
-                    when "param"                                                                                 then %w(name type name_span)
-                    when "assign"                                                                                then %w(target value)
-                    when "if"                                                                                    then %w(cond then_branch else_branch)
-                    when "unsupported_expr"                                                                      then %w(crystal_node)
-                    when "int_literal", "float_literal", "string_literal", "bool_literal"                        then %w(value)
-                    when "nil_literal", "mutex_new"                                                              then [] of String
-                    when "block_arg"                                                                             then %w(name name_span)
-                    when "block_literal"                                                                         then %w(args body signature)
-                    when "block_param"                                                                           then %w(name signature name_span yield_parameter value_required)
-                    when "invoke_block"                                                                          then %w(receiver args yield_site)
-                    when "call"                                                                                  then %w(name args targets block primitive name_span dispatch_receiver)
-                    when "collection_map", "collection_each", "collection_fold", "indexed_read", "indexed_write" then %w(fallback)
-                    when "collection_filter"                                                                     then %w(fallback mode)
-                    when "interpolation"                                                                         then %w(pieces)
-                    when "size", "not"                                                                           then %w(value)
-                    when "string_char_at"                                                                        then %w(string index)
-                    when "string_each_char"                                                                      then %w(string block)
-                    when "string_split"                                                                          then %w(string separator)
-                    when "string_to_float"                                                                       then %w(string)
-                    when "string_to_integer"                                                                     then %w(string options)
-                    when "array_new"                                                                             then %w(element)
-                    when "array_build"                                                                           then %w(element size)
-                    when "array_get"                                                                             then %w(array element index)
-                    when "array_set"                                                                             then %w(array element index value)
-                    when "array_push"                                                                            then %w(array element value)
-                    when "value_sequence"                                                                        then %w(prefix value)
-                    when "hash_new"                                                                              then %w(hash_type)
-                    when "hash_get", "hash_has_key"                                                              then %w(hash_type hash key)
-                    when "hash_set"                                                                              then %w(hash_type hash key value)
-                    when "hash_fetch"                                                                            then %w(hash_type hash key default)
-                    when "hash_key_at"                                                                           then %w(hash_type hash index)
-                    when "type_test", "cast"                                                                     then %w(value target)
-                    when "new"                                                                                   then %w(class_name args name_span invokes_initializer)
-                    when "spawn"                                                                                 then %w(proc)
-                    when "channel_new"                                                                           then %w(element capacity)
-                    when "channel_op"                                                                            then %w(operation)
-                    when "select"                                                                                then %w(arms else_body)
-                    when "raise"                                                                                 then %w(value raise_kind)
-                    when "exception_new"                                                                         then %w(class_name message)
-                    when "exception_handler"                                                                     then %w(body clauses else_branch ensure_branch)
-                    when "return", "break", "next"                                                               then %w(value target)
-                    when "field_initializer"                                                                     then %w(field value name_span)
-                    when "class"                                                                                 then %w(name concrete_type superclass_name superclass_type fields initializers reference name_span)
-                    when "enum"                                                                                  then %w(type base_type members name_span)
-                    when "namespace"                                                                             then %w(path body name_span)
-                    when "type_alias"                                                                            then %w(path target name_span)
-                    when "type_alias_reference"                                                                  then %w(path target name_span)
-                    when "constant"                                                                              then %w(path value type name_span)
-                    when "def"                                                                                   then %w(name owner callable_kind namespace_path params block_param body return_type return_type_reference name_span capability_witnesses)
-                    when "while"                                                                                 then %w(cond body)
-                    else
-                      Value.invalid("#{location}.kind", "unknown NIR node kind #{kind.inspect}")
-                    end
-            base + extra
           end
         end
       end
