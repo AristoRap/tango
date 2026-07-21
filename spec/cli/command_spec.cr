@@ -135,7 +135,7 @@ describe "tango semantic transport" do
 
     begin
       status, out, err = run_semantic_producer([
-        File.join("examples", "string_split.tn"),
+        File.join("examples", "weather_report.tn"),
         "--emit-semantic",
         bundle_path,
       ])
