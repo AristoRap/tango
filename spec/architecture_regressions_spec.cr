@@ -41,15 +41,19 @@ describe "architecture audit regressions" do
 
   it "does not infer editor root ownership from graph size" do
     workspace = ArchitectureRegressions.read("src/tango/lsp/workspace.cr")
+    ownership = ArchitectureRegressions.read("src/tango/lsp/root_ownership_index.cr")
     workspace.should_not match(/source\.files\.size\s*>/)
     workspace.should_not contain(".max_by?")
     workspace.should_not match(/rescue\s*\n\s*next/)
-    broad_scans = workspace.lines.count { |line| line.includes?("Dir.glob(File.join(root") }
-    broad_scans.should eq(2), <<-MESSAGE
-    One scan catalogs bundled packages; the other remaining broad disk-root
-    discovery is tracked debt. Do not add another scan; replace ownership
-    discovery with an explicit cached reverse index.
-    MESSAGE
+    workspace.lines.count { |line| line.includes?("Dir.glob(File.join(root") }.should eq(1)
+    ownership.lines.count { |line| line.includes?("Dir.glob(File.join(root") }.should eq(1)
+    ownership.should contain("candidates.size == 1")
+  end
+
+  it "keeps Array stage-interleaving fusion disabled" do
+    strategy = ArchitectureRegressions.read("src/tango/planning/strategies/semantic_collections.cr")
+    strategy.should_not contain("IR::NIR::CollectionFold")
+    strategy.should_not contain("FusedCollectionTransform.new")
   end
 
   it "keeps unsupported target values fail-loud" do

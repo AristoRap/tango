@@ -18,7 +18,6 @@ module Tango
       private class WorkspaceState
         getter documents = {} of String => Document
         getter analysis_contexts = {} of String => AnalysisContext
-        property roots = [] of String
       end
 
       getter bundled_packages : Array(String)
@@ -39,6 +38,7 @@ module Tango
         end
         @analysis = AnalysisState.new(worker)
         @state = WorkspaceState.new
+        @root_ownership = RootOwnershipIndex.new(@log)
       end
 
       def documents : Hash(String, Document)
@@ -54,10 +54,11 @@ module Tango
       end
 
       def configure_roots(paths : Enumerable(String)) : Nil
-        @state.roots = paths.compact_map do |path|
+        roots = paths.compact_map do |path|
           expanded = File.expand_path(path)
           expanded if File.directory?(expanded)
         end.uniq
+        @root_ownership.rebuild(roots)
       end
 
       def open(uri : String, path : String, text : String, version : Int32?) : Document
@@ -71,7 +72,7 @@ module Tango
           affected << existing unless affected.includes?(existing)
         end
 
-        context = owning_disk_context(path, resolver) if affected.empty?
+        context = @root_ownership.unique_owner?(path).try { |owner| AnalysisContext.new(owner) } if affected.empty?
         document = Document.new(
           uri,
           path,
@@ -396,55 +397,8 @@ module Tango
         @state.documents.values.to_h { |document| {document.path, document.text} }
       end
 
-      # A required file may not instantiate any of its declarations when it is
-      # compiled as an entrypoint. Find the largest disk graph in the announced
-      # workspace that owns it, using the same resolver (including glob and
-      # open-buffer overlays) as normal compilation.
-      private def owning_disk_context(
-        path : String,
-        resolver : Frontend::SourceGraph::Resolver,
-      ) : AnalysisContext?
-        target_identity = canonical_path(path)
-        best_context : AnalysisContext? = nil
-        best_score = 0
-
-        roots_containing(path).each do |root|
-          Dir.glob(File.join(root, "**", "*.tn")).sort.each do |candidate_path|
-            next if canonical_path(candidate_path) == target_identity
-            source = File.read(candidate_path)
-            next unless source.includes?("require")
-
-            entrypoint = Source::File.new(candidate_path, source, canonical_path(candidate_path))
-            loaded = Frontend::SourceGraph::Loader.load(entrypoint, resolver)
-            next unless loaded.diagnostics.empty?
-            next unless loaded.source.files.any? { |file| canonical_path(file.path) == target_identity }
-
-            score = loaded.source.files.size
-            if best_context.nil? || score > best_score
-              best_context = AnalysisContext.new(candidate_path)
-              best_score = score
-            end
-          rescue ex : File::Error
-            @log.puts "tango lsp root discovery skipped #{candidate_path}: #{ex.message}"
-            next
-          end
-        end
-        best_context
-      end
-
-      private def roots_containing(path : String) : Array(String)
-        expanded = File.expand_path(path)
-        @state.roots.select do |root|
-          expanded == root || expanded.starts_with?("#{root}#{File::SEPARATOR}")
-        end
-      end
-
       private def analysis_text_for(path : String) : String
         document_for_path(path).try(&.text) || File.read(path)
-      end
-
-      private def canonical_path(path : String) : String
-        Source::File.canonical_identity(path)
       end
 
       private def compatible_semantic_span(

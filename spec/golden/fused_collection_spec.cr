@@ -20,7 +20,7 @@ private def find_fused_fold(node : FusedNIR::Stmt) : FusedNIR::CollectionFold?
   nil
 end
 
-describe "first fused collection plan" do
+describe "collection fusion safety" do
   source_path = File.join("examples", "fused_collection.tn")
   source = File.read(source_path)
   development = Tango.snapshot(source, filename: source_path)
@@ -28,7 +28,7 @@ describe "first fused collection plan" do
   program = expect_present(release.nir)
   fold = expect_present(find_fused_fold(program))
 
-  it "keeps semantics profile-independent and chooses fusion only in Release" do
+  it "keeps Array select/map/fold eager in every profile" do
     development.diagnostics.should eq(release.diagnostics)
     Tango::Dump::NIR.render(development).should eq(Tango::Dump::NIR.render(release))
     Tango::Dump::Facts.render(development).should eq(Tango::Dump::Facts.render(release))
@@ -37,30 +37,19 @@ describe "first fused collection plan" do
     development_plan.should be_a(Tango::Planning::Plans::MaterializeViaFallback)
 
     release_plan = expect_present(release.plans).semantic_collections[fold.id]
-    release_plan.should be_a(Tango::Planning::Plans::FusedCollectionTraversal)
-    fused = release_plan.as(Tango::Planning::Plans::FusedCollectionTraversal)
-    fused.transforms.map(&.kind).should eq([
-      Tango::Planning::Plans::FusedCollectionTransformKind::FilterKeep,
-      Tango::Planning::Plans::FusedCollectionTransformKind::Map,
-    ])
+    release_plan.should be_a(Tango::Planning::Plans::MaterializeViaFallback)
   end
 
-  it "commits independent LIR axes and one target loop without intermediates" do
+  it "does not commit an Array fused traversal into LIR or Go" do
     plans = Tango::Dump::Plans.render(release)
-    plans.should contain("semantic_collection FusedCollectionTraversal Int32")
-    plans.should contain("transforms=[FilterKeep, Map]")
+    plans.should_not contain("semantic_collection FusedCollectionTraversal Int32")
 
     lir = Tango::Dump::LIR.render(release)
-    lir.should contain("FusedCollectionTraversal Int32 Source=ArrayElements(Int32)")
-    lir.should contain("Transform=CollectionFilterTransform Transform=CollectionMapTransform")
-    lir.should contain("Terminal=CollectionFoldTerminal")
-    lir.lines.find(&.starts_with?("ExternalCall FusedCollectionTraversal")).should_not be_nil
+    lir.should_not contain("FusedCollectionTraversal Int32 Source=ArrayElements(Int32)")
 
     go = expect_present(release.go_source)
-    main = go.split("func main()", 2)[1]
-    main.scan("for _, ").size.should eq(1)
-    main.should_not contain("tangoArrayNew")
-    main.should_not contain("tangoArrayPush")
+    go.should contain("tangoArrayNew")
+    go.should contain("tangoArrayPush")
   end
 
   it "retains the fallback when a transform can raise" do

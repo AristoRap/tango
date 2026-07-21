@@ -42,11 +42,11 @@ It should not rediscover those facts by walking source details directly.
 
 Collection operations stay semantic in NIR. Development chooses
 `MaterializeViaFallback` for bodyful map/filter/each/fold operations. Release
-can select `FusedCollectionTraversal` for the benchmark-backed direct Array
-`select.map.reduce` spine only when collection facts prove its stable finite
-source, confined intermediates, and conservative block laws. Other bodyful
-operations and unsafe chains retain the ordinary Tango bodies. Targets never
-scan the program graph during emission.
+also materializes Array `select.map.reduce`: fusion would interleave stages and
+change exception order until executable-node effect evidence is conservative
+and exhaustive. Release may select `FusedCollectionTraversal` only to stream a
+planned `String#split` production directly into `each`. Targets never scan the
+program graph during emission.
 
 Good discipline:
 
