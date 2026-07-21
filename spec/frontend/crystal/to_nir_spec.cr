@@ -552,12 +552,15 @@ describe Tango::Frontend::Crystal::ToNIR do
     receive.kind.should eq(NIR::ChannelOp::Kind::Receive)
     receive.channel.as(NIR::Local).name.should eq("ch")
     receive.element.should eq(Tango::IR::Type.int(Tango::IR::Type::Width::I32))
+    receive.operation.should be_a(NIR::ChannelOp)
+    expect_present(receive.operation.method_site).name.should eq("receive")
     expect_present(receive.captured).name.should eq("x")
     receive.body.body.first.as(NIR::Call).name.should eq("puts")
 
     # Arm 1: `when done.receive` — a bare receive, no captured local.
     bare = chosen.arms[1]
     bare.channel.as(NIR::Local).name.should eq("done")
+    expect_present(bare.operation.method_site).name.should eq("receive")
     bare.captured.should be_nil
   end
 

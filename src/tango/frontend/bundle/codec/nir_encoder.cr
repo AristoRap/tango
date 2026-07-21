@@ -185,7 +185,7 @@ module Tango
               write_nullable_node(builder, "capacity", node.capacity)
             when IR::NIR::MutexNew
             when IR::NIR::ChannelOp
-              builder.field("operation") { write_channel_operation(builder, node.operation) }
+              builder.field("operation") { write_channel_operation(builder, node) }
             when IR::NIR::Select
               builder.field("arms") do
                 builder.array { node.arms.each { |arm| write_select_arm(builder, arm) } }
@@ -316,7 +316,7 @@ module Tango
             builder.field("hash_type") { Value.write_type(builder, node.hash_type) }
           end
 
-          private def write_channel_operation(builder, operation : IR::NIR::ChannelOperation) : Nil
+          private def write_channel_operation(builder, operation : IR::NIR::ChannelOp) : Nil
             builder.object do
               builder.field("kind", operation.kind.to_s)
               builder.field("channel") { write_node(builder, operation.channel) }
@@ -327,7 +327,7 @@ module Tango
 
           private def write_select_arm(builder, arm : IR::NIR::Select::Arm) : Nil
             builder.object do
-              builder.field("operation") { write_channel_operation(builder, arm.operation) }
+              builder.field("operation") { write_node(builder, arm.operation) }
               write_nullable_node(builder, "captured", arm.captured)
               builder.field("body") { write_node(builder, arm.body) }
             end

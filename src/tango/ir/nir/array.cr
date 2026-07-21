@@ -7,8 +7,8 @@ module Tango
       class ArrayNew < Expr
         getter element : IR::Type
 
-        def initialize(id : NodeId, @element : IR::Type, type : IR::Type?, span : Source::Range?)
-          super(id, type, span)
+        def initialize(id : NodeId, @element : IR::Type, type : IR::Type?, span : Source::Range?, method_site : MethodSite? = nil)
+          super(id, type, span, method_site)
         end
       end
 
@@ -16,8 +16,8 @@ module Tango
         getter element : IR::Type
         getter size : Expr
 
-        def initialize(id : NodeId, @element : IR::Type, @size : Expr, type : IR::Type?, span : Source::Range?)
-          super(id, type, span)
+        def initialize(id : NodeId, @element : IR::Type, @size : Expr, type : IR::Type?, span : Source::Range?, method_site : MethodSite? = nil)
+          super(id, type, span, method_site)
         end
       end
 

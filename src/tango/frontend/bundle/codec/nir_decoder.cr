@@ -162,9 +162,9 @@ module Tango
             when "string_to_integer"
               IR::NIR::StringToInteger.new(id, expr(object, "string", location), exprs(object, "options", location), type, span, method_site)
             when "array_new"
-              IR::NIR::ArrayNew.new(id, required_type(object, "element", location), type, span)
+              IR::NIR::ArrayNew.new(id, required_type(object, "element", location), type, span, method_site)
             when "array_build"
-              IR::NIR::ArrayBuild.new(id, required_type(object, "element", location), expr(object, "size", location), type, span)
+              IR::NIR::ArrayBuild.new(id, required_type(object, "element", location), expr(object, "size", location), type, span, method_site)
             when "array_get"
               IR::NIR::ArrayGet.new(id, expr(object, "array", location), expr(object, "index", location), required_type(object, "element", location), type, span, method_site)
             when "array_set"
@@ -210,13 +210,13 @@ module Tango
                 required_type(object, "element", location),
                 optional_node(object, "capacity", location) { |node| as_expr(node, "#{location}.capacity") },
                 type,
-                span
+                span,
+                method_site
               )
             when "mutex_new"
-              IR::NIR::MutexNew.new(id, type, span)
+              IR::NIR::MutexNew.new(id, type, span, method_site)
             when "channel_op"
-              operation = read_channel_operation(field(object, "operation", location), "#{location}.operation")
-              IR::NIR::ChannelOp.new(id, operation.kind, operation.channel, operation.value, operation.element, type, span, method_site)
+              read_channel_operation(id, type, span, method_site, field(object, "operation", location), "#{location}.operation")
             when "select"
               arms = Value.array(field(object, "arms", location), "#{location}.arms").map_with_index do |arm, index|
                 read_select_arm(arm, "#{location}.arms[#{index}]")
@@ -384,23 +384,27 @@ module Tango
             )
           end
 
-          private def read_channel_operation(value, location) : IR::NIR::ChannelOperation
+          private def read_channel_operation(id : NodeId, type : IR::Type?, span : Tango::Source::Range?, method_site : IR::NIR::MethodSite?, value, location) : IR::NIR::ChannelOp
             object = Value.object(value, location)
             Value.expect_keys(object, %w(kind channel value element), location)
-            IR::NIR::ChannelOperation.new(
-              Value.parse_enum(IR::NIR::ChannelOperation::Kind, field(object, "kind", location), "#{location}.kind"),
+            IR::NIR::ChannelOp.new(
+              id,
+              Value.parse_enum(IR::NIR::ChannelOp::Kind, field(object, "kind", location), "#{location}.kind"),
               expr(object, "channel", location),
               optional_node(object, "value", location) { |node| as_expr(node, "#{location}.value") },
-              required_type(object, "element", location)
+              required_type(object, "element", location),
+              type,
+              span,
+              method_site
             )
           end
 
           private def read_select_arm(value, location) : IR::NIR::Select::Arm
             object = Value.object(value, location)
             Value.expect_keys(object, %w(operation captured body), location)
-            operation = read_channel_operation(field(object, "operation", location), "#{location}.operation")
+            operation = as_type(read_node(field(object, "operation", location), "#{location}.operation"), IR::NIR::ChannelOp, "#{location}.operation")
             captured = optional_node(object, "captured", location) { |node| as_type(node, IR::NIR::Local, "#{location}.captured") }
-            IR::NIR::Select::Arm.new(operation.kind, operation.channel, operation.value, captured, operation.element, block(object, "body", location))
+            IR::NIR::Select::Arm.new(operation, captured, block(object, "body", location))
           end
 
           private def read_rescue_clause(value, location) : IR::NIR::RescueClause

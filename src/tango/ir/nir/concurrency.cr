@@ -18,8 +18,8 @@ module Tango
         getter element : IR::Type
         getter capacity : Expr?
 
-        def initialize(id : NodeId, @element : IR::Type, @capacity : Expr?, type : IR::Type?, span : Source::Range?)
-          super(id, type, span)
+        def initialize(id : NodeId, @element : IR::Type, @capacity : Expr?, type : IR::Type?, span : Source::Range?, method_site : MethodSite? = nil)
+          super(id, type, span, method_site)
         end
       end
 
@@ -27,16 +27,16 @@ module Tango
       # primitive. Carries nothing structural — a mutex has a single native
       # representation, chosen and spelled entirely at the target.
       class MutexNew < Expr
-        def initialize(id : NodeId, type : IR::Type?, span : Source::Range?)
-          super(id, type, span)
+        def initialize(id : NodeId, type : IR::Type?, span : Source::Range?, method_site : MethodSite? = nil)
+          super(id, type, span, method_site)
         end
       end
 
-      # The target-neutral data common to a direct channel operation and a
-      # select arm. Keeping the operation as one composed value means syntax
-      # families can grow without copying channel/value/element/kind state
-      # between their owners.
-      class ChannelOperation
+      # One resolved channel-method expression, used unchanged in ordinary
+      # expression position and as a select arm's operation. Keeping select
+      # operations as real Expr nodes preserves their identity, source span,
+      # type, and method site for every downstream consumer.
+      class ChannelOp < Expr
         enum Kind
           Send
           Receive
@@ -50,7 +50,8 @@ module Tango
         getter value : Expr?
         getter element : IR::Type
 
-        def initialize(@kind : Kind, @channel : Expr, @value : Expr?, @element : IR::Type)
+        def initialize(id : NodeId, @kind : Kind, @channel : Expr, @value : Expr?, @element : IR::Type, type : IR::Type?, span : Source::Range?, method_site : MethodSite? = nil)
+          super(id, type, span, method_site)
         end
       end
 
@@ -64,15 +65,14 @@ module Tango
         # One `when` of a `select`. A receive arm may bind `captured` (the
         # `x` of `when x = ch.receive`); a send arm carries its `value`.
         class Arm
-          getter operation : ChannelOperation
+          getter operation : ChannelOp
           getter captured : Local?
           getter body : Block
 
-          def initialize(kind : ChannelOperation::Kind, channel : Expr, value : Expr?, @captured : Local?, element : IR::Type, @body : Block)
-            @operation = ChannelOperation.new(kind, channel, value, element)
+          def initialize(@operation : ChannelOp, @captured : Local?, @body : Block)
           end
 
-          def kind : ChannelOperation::Kind
+          def kind : ChannelOp::Kind
             operation.kind
           end
 
@@ -94,36 +94,6 @@ module Tango
 
         def initialize(id : NodeId, @arms : Array(Arm), @else_body : Block?, type : IR::Type?, span : Source::Range?)
           super(id, type, span)
-        end
-      end
-
-      # A native channel operation on `channel`, tagged by kind. `send` carries
-      # its `value`; `receive`/`receive?`/`close` do not. `element` is the
-      # channel's `T`, kept so lowering/target need no receiver-type lookup.
-      class ChannelOp < Expr
-        alias Kind = ChannelOperation::Kind
-
-        getter operation : ChannelOperation
-
-        def initialize(id : NodeId, kind : Kind, channel : Expr, value : Expr?, element : IR::Type, type : IR::Type?, span : Source::Range?, method_site : MethodSite? = nil)
-          @operation = ChannelOperation.new(kind, channel, value, element)
-          super(id, type, span, method_site)
-        end
-
-        def kind : Kind
-          operation.kind
-        end
-
-        def channel : Expr
-          operation.channel
-        end
-
-        def value : Expr?
-          operation.value
-        end
-
-        def element : IR::Type
-          operation.element
         end
       end
     end

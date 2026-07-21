@@ -56,7 +56,7 @@ describe Tango::Frontend::Bundle::Codec do
 
   it "preserves canonical Go through decoded representative whole programs" do
     root = File.expand_path("../../..", __DIR__)
-    %w(string_split class float_systems enum_dispatch namespaced_constants).each do |name|
+    %w(string_split class float_systems enum_dispatch namespaced_constants select_hetero).each do |name|
       path = File.join(root, "examples", "#{name}.tn")
       file = Tango::Source::File.new(path, File.read(path))
       source = Tango::Source::CompilationUnit.single(file)

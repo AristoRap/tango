@@ -327,6 +327,15 @@ describe Tango::Compiler::Editor::Hover do
     hover_text(snapshot, path, 6, 8).should eq("x : Int32")
   end
 
+  it "indexes select operations through the generic resolved method-site path" do
+    path = File.expand_path("../../examples/select_hetero.tn", __DIR__)
+    snapshot = Tango.snapshot(File.read(path), filename: path)
+
+    hover_text(snapshot, path, 1, 24).should eq("Channel(Int32).new : Channel(Int32)")
+    hover_text(snapshot, path, 5, 17).should eq("Channel(Int32)#receive : Int32")
+    hover_text(snapshot, path, 7, 18).should eq("Channel(String)#receive : String")
+  end
+
   it "renders receive? select bindings as explicit unions and preserves narrowing" do
     path = File.expand_path("../../examples/concurrency_edges.tn", __DIR__)
     snapshot = Tango.snapshot(File.read(path), filename: path)

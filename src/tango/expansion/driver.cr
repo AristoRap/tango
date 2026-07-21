@@ -218,7 +218,7 @@ module Tango
         when IR::NIR::HashKeyAt
           IR::NIR::HashKeyAt.new(node.id, rewrite_expr(node.hash), rewrite_expr(node.index), node.hash_type, node.type, node.span, node.method_site)
         when IR::NIR::ArrayBuild
-          IR::NIR::ArrayBuild.new(node.id, node.element, rewrite_expr(node.size), node.type, node.span)
+          IR::NIR::ArrayBuild.new(node.id, node.element, rewrite_expr(node.size), node.type, node.span, node.method_site)
         when IR::NIR::ArrayGet
           IR::NIR::ArrayGet.new(node.id, rewrite_expr(node.array), rewrite_expr(node.index), node.element, node.type, node.span, node.method_site)
         when IR::NIR::ArraySet
@@ -246,7 +246,8 @@ module Tango
             node.element,
             node.capacity.try { |capacity| rewrite_expr(capacity) },
             node.type,
-            node.span
+            node.span,
+            node.method_site
           )
         when IR::NIR::ChannelOp
           IR::NIR::ChannelOp.new(
@@ -262,11 +263,8 @@ module Tango
         when IR::NIR::Select
           arms = node.arms.map do |arm|
             IR::NIR::Select::Arm.new(
-              arm.kind,
-              rewrite_expr(arm.channel),
-              arm.value.try { |value| rewrite_expr(value) },
+              rewrite_expr(arm.operation).as(IR::NIR::ChannelOp),
               arm.captured,
-              arm.element,
               rewrite_block(arm.body)
             )
           end

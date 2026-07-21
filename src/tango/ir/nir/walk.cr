@@ -135,8 +135,7 @@ module Tango
             kids = Array(Stmt).new
             node.arms.each do |arm|
               arm.captured.try { |captured| kids << captured }
-              kids << arm.channel
-              arm.value.try { |value| kids << value }
+              kids << arm.operation
               kids << arm.body
             end
             node.else_body.try { |else_body| kids << else_body }
@@ -163,8 +162,7 @@ module Tango
           when Select
             kids = Array(Stmt).new
             node.arms.each do |arm|
-              kids << arm.channel
-              arm.value.try { |value| kids << value }
+              kids << arm.operation
               kids << arm.body
             end
             node.else_body.try { |else_body| kids << else_body }

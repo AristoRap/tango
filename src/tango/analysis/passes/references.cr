@@ -81,8 +81,7 @@ module Tango
             # Each arm's channel/value reads enclosing locals; the body opens a
             # nested scope where a receive-assign binds its captured local.
             node.arms.each do |arm|
-              visit(arm.channel, scope, table)
-              arm.value.try { |value| visit(value, scope, table) }
+              visit(arm.operation, scope, table)
               inner = Scope.new(scope)
               arm.captured.try { |captured| declare(inner, captured.name, captured.id) }
               visit(arm.body, inner, table)

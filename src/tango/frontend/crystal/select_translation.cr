@@ -113,7 +113,43 @@ module Tango
           value = action.kind.send? ? action.call.args.first?.try { |arg| translate_expr(arg) } : nil
           captured_type = action.kind.receive_maybe? ? element.with_nil : element
           captured, body = split_captured_receive(body_node, value_name, captured_type)
-          IR::NIR::Select::Arm.new(action.kind, channel, value, captured, element, body)
+          operation = IR::NIR::ChannelOp.new(
+            next_id,
+            action.kind,
+            channel,
+            value,
+            element,
+            select_operation_type(action.kind, element),
+            span(action.call),
+            select_method_site(action, channel, value, element)
+          )
+          IR::NIR::Select::Arm.new(operation, captured, body)
+        end
+
+        private def select_operation_type(kind : IR::NIR::ChannelOp::Kind, element : IR::Type) : IR::Type
+          case kind
+          when .receive?       then element
+          when .receive_maybe? then element.with_nil
+          else                      IR::Type::NIL
+          end
+        end
+
+        private def select_method_site(action : SelectAction, channel : IR::NIR::Expr, value : IR::NIR::Expr?, element : IR::Type) : IR::NIR::MethodSite
+          name = case action.kind
+                 when .send?          then "send"
+                 when .receive?       then "receive"
+                 when .receive_maybe? then "receive?"
+                 else                      action.call.name
+                 end
+          argument_types = value.try { |argument| [argument.type || IR::Type.unknown] } || [] of IR::Type
+          IR::NIR::MethodSite.new(
+            channel.type || IR::Type.unknown,
+            name,
+            argument_types,
+            select_operation_type(action.kind, element),
+            name_span(action.call.name_location, name),
+            IR::NIR::CallableKind::InstanceMethod
+          )
         end
 
         # A receive-assign arm's body opens with `x = <value_temp>.as(...)`; lift

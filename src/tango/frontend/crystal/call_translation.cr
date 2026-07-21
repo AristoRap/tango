@@ -113,12 +113,12 @@ module Tango
             return unsupported(node) if node.block || !node.args.empty?
 
             element = array_element(type_of(node))
-            IR::NIR::ArrayNew.new(next_id, element, type_of(node), span(node))
+            IR::NIR::ArrayNew.new(next_id, element, type_of(node), span(node), constructor_method_site(node, receiver))
           when "tango_array_build"
             return unsupported(node) if node.block || node.args.size != 1
 
             element = array_element(type_of(node))
-            IR::NIR::ArrayBuild.new(next_id, element, translate_expr(node.args.first), type_of(node), span(node))
+            IR::NIR::ArrayBuild.new(next_id, element, translate_expr(node.args.first), type_of(node), span(node), constructor_method_site(node, receiver))
           when "tango_array_get"
             return unsupported(node) if node.block || node.args.size != 1
 
@@ -145,12 +145,12 @@ module Tango
           when "tango_mutex_new"
             return unsupported(node) if node.block || !node.args.empty?
 
-            IR::NIR::MutexNew.new(next_id, type_of(node), span(node))
+            IR::NIR::MutexNew.new(next_id, type_of(node), span(node), constructor_method_site(node, receiver))
           when "tango_chan_new"
             return unsupported(node) if node.block || node.args.size > 1
 
             capacity = node.args.first?.try { |arg| translate_expr(arg) }
-            IR::NIR::ChannelNew.new(next_id, channel_element(type_of(node)), capacity, type_of(node), span(node))
+            IR::NIR::ChannelNew.new(next_id, channel_element(type_of(node)), capacity, type_of(node), span(node), constructor_method_site(node, receiver))
           when "tango_chan_send", "tango_chan_receive", "tango_chan_receive_q", "tango_chan_next_state", "tango_chan_close"
             return unsupported(node) if node.block
 
@@ -207,6 +207,10 @@ module Tango
           else
             method_site(node, args.first)
           end
+        end
+
+        private def constructor_method_site(node : ::Crystal::Call, receiver : ::Crystal::ASTNode) : IR::NIR::MethodSite
+          method_site(node, class_receiver_type(receiver), IR::NIR::CallableKind::Constructor)
         end
 
         private def class_dispatch_receiver(receiver : ::Crystal::ASTNode) : IR::NIR::ClassRef?
