@@ -42,10 +42,10 @@ jobs:
 
           version="${GITHUB_REF_NAME#v}"
           shard_version="$(awk '$1 == "version:" { print $2; exit }' shard.yml)"
-          source_version="$(sed -n 's/.*VERSION = "\([^"]*\)".*/\1/p' src/tango/version.cr)"
+          source_version="$(shards version src/tango)"
 
           [[ "$version" == "$shard_version" && "$version" == "$source_version" ]] || {
-            echo "Tag $version does not match shard.yml ($shard_version) and src/tango/version.cr ($source_version)" >&2
+            echo "Tag $version does not match shard.yml ($shard_version) and the resolved Tango source version ($source_version)" >&2
             exit 1
           }
 

@@ -1,0 +1,29 @@
+graph = Array(Array(Int32)).new
+graph << [1, 2]
+graph << [3]
+graph << [3, 4]
+graph << [4]
+graph << Array(Int32).new
+
+queue = Array(Int32).new
+queue << 0
+seen = Set(Int32).new
+cursor = 0
+
+while cursor < queue.size
+  node = queue[cursor]
+  cursor = cursor + 1
+  if seen.add?(node)
+    graph[node].each do |neighbor|
+      queue << neighbor
+    end
+  end
+end
+
+seen << 2
+seen.each do |node|
+  puts node
+end
+puts "size=#{seen.size}"
+puts "has3=#{seen.includes?(3)}"
+puts "has9=#{seen.includes?(9)}"
