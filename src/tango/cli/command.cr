@@ -90,6 +90,10 @@ module Tango
         valid : Bool,
         path : String?
 
+      private record CompiledProgram,
+        source : String,
+        modules : Array(::Tango::Target::Go::Runtime::ModuleRequirement)
+
       private def parse_entrypoint : {String?, Bool, Bool, String?}
         command = nil
         help_requested = false
@@ -174,9 +178,9 @@ module Tango
         return 1 unless options
 
         source = SourceInput.read(options.source_path, @input)
-        go_source = compile(source, compilation_profile(options.release))
-        return 1 unless go_source
-        result = ::Tango::Toolchain::Go.run_source(go_source, source.filename, @output, @error, race: options.race)
+        compiled = compile(source, compilation_profile(options.release))
+        return 1 unless compiled
+        result = ::Tango::Toolchain::Go.run_source(compiled.source, source.filename, @output, @error, race: options.race, modules: compiled.modules)
         DiagnosticOutput.render(source, result.diagnostics, @error)
         result.status
       end
@@ -186,9 +190,9 @@ module Tango
         return 1 unless options
 
         source = SourceInput.read(options.source_path, @input)
-        go_source = compile(source, compilation_profile(options.release))
-        return 1 unless go_source
-        result = ::Tango::Toolchain::Go.build_source(go_source, source.filename, options.output_path || ::Tango::Workspace::Layout.build_output(source.filename), @error, race: options.race)
+        compiled = compile(source, compilation_profile(options.release))
+        return 1 unless compiled
+        result = ::Tango::Toolchain::Go.build_source(compiled.source, source.filename, options.output_path || ::Tango::Workspace::Layout.build_output(source.filename), @error, race: options.race, modules: compiled.modules)
         DiagnosticOutput.render(source, result.diagnostics, @error)
         result.status
       end
@@ -208,9 +212,9 @@ module Tango
         source_argument = single_source_argument("usage: tango emit go [--release] [file|-]")
         return 1 unless source_argument.valid
         source = SourceInput.read(source_argument.path, @input)
-        go_source = compile(source, compilation_profile(release))
-        return 1 unless go_source
-        formatted = ::Tango::Toolchain::Go.format_source(go_source)
+        compiled = compile(source, compilation_profile(release))
+        return 1 unless compiled
+        formatted = ::Tango::Toolchain::Go.format_source(compiled.source)
         unless formatted.success?
           DiagnosticOutput.render(source, formatted.diagnostics, @error)
           return 1
@@ -322,11 +326,11 @@ module Tango
         0
       end
 
-      private def compile(source : SourceInput::Entry, profile : Compiler::CompilationProfile) : String?
+      private def compile(source : SourceInput::Entry, profile : Compiler::CompilationProfile) : CompiledProgram?
         snapshot = ::Tango.snapshot(source.code, filename: source.filename, stable_path: source.stable_path?, profile: profile)
         if go_source = snapshot.go_source
           DiagnosticOutput.render(snapshot, @error)
-          return go_source
+          return CompiledProgram.new(go_source, snapshot.go_modules)
         end
 
         DiagnosticOutput.render(snapshot, @error)

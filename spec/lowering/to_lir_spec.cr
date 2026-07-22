@@ -571,7 +571,7 @@ describe Tango::Lowering::ToLIR do
     lock = program.body[1].as(Tango::IR::LIR::ExternalCall)
     lock.target.receiver_method?.should be_true
     lock.target.name.should eq("Lock")
-    lock.target.package_name.should be_nil
+    lock.target.package_identifier.should be_nil
     lock.args.first.as(Tango::IR::LIR::Temp).name.should eq("mutex")
   end
 end

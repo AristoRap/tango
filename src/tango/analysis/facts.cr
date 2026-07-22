@@ -3,17 +3,22 @@ module Tango
     module Facts
       class GoExternal
         getter binding : IR::ExternalBinding
+        getter dependency : IR::ExternalDependency?
         getter? receiver_method : Bool
 
-        def initialize(package_name : String?, name : String, @receiver_method : Bool = false)
-          @binding = IR::ExternalBinding.new("go", package_name, name)
+        def initialize(package_identifier : String?, name : String, @receiver_method : Bool = false, import_path : String? = package_identifier, @dependency : IR::ExternalDependency? = nil)
+          @binding = IR::ExternalBinding.new("go", package_identifier, name, import_path: import_path)
         end
 
-        def initialize(@binding : IR::ExternalBinding, @receiver_method : Bool = false)
+        def initialize(@binding : IR::ExternalBinding, @receiver_method : Bool = false, @dependency : IR::ExternalDependency? = nil)
         end
 
-        def package_name : String?
-          binding.package_name
+        def import_path : String?
+          binding.import_path
+        end
+
+        def package_identifier : String?
+          binding.package_identifier
         end
 
         def name : String
@@ -31,11 +36,15 @@ module Tango
           new(IR::ExternalBinding.qualified("go", value))
         end
 
+        def self.package(import_path : String, package_identifier : String, name : String, dependency : IR::ExternalDependency? = nil) : self
+          new(IR::ExternalBinding.package("go", import_path, package_identifier, name), dependency: dependency)
+        end
+
         def to_s(io : IO) : Nil
           if receiver_method?
             io << '.' << name
-          elsif package_name = package_name()
-            io << package_name << '.' << name
+          elsif package_identifier = package_identifier()
+            io << package_identifier << '.' << name
           else
             io << name
           end

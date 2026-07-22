@@ -4,6 +4,11 @@ end
 annotation GoType
 end
 
+# Declares the Go module that owns an external binding. Generated or curated
+# package declarations provide this build metadata outside application code.
+annotation GoModule
+end
+
 # Marks prelude defs that exist only so a Crystal parser-keyword expansion
 # type-checks (e.g. `select`). The frontend recognizes the surface keyword and
 # never lowers these — they emit nothing.

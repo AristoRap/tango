@@ -473,7 +473,7 @@ module Tango
       end
 
       private def self.external_target(target : IR::LIR::ExternalTarget) : String
-        prefix = target.package_name ? "#{target.package_name}." : ""
+        prefix = target.package_identifier ? "#{target.package_identifier}." : ""
         target.receiver_method? ? ".#{target.name}" : "#{prefix}#{target.name}"
       end
     end

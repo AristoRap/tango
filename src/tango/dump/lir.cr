@@ -10,7 +10,8 @@ module Tango
           io << "UncaughtException " << program.uncaught_exception << '\n'
           program.external_types.each do |binding|
             io << "ExternalType " << binding.type << " " << binding.binding.language << " " << binding.shape
-            binding.binding.package_name.try { |package_name| io << " package=" << package_name }
+            binding.binding.import_path.try { |import_path| io << " import=" << import_path }
+            binding.binding.package_identifier.try { |package_identifier| io << " package=" << package_identifier }
             binding.binding.name.try { |name| io << " name=" << name }
             io << '\n'
           end
@@ -265,8 +266,10 @@ module Tango
           value.args.each { |arg| emit_inline_value(io, arg, depth) }
         when IR::LIR::ExternalCallValue
           io << " ExternalCall "
-          value.target.package_name.try { |package_name| io << package_name << '.' }
+          value.target.package_identifier.try { |package_identifier| io << package_identifier << '.' }
           io << value.target.name
+          value.target.import_path.try { |import_path| io << " import=" << import_path }
+          value.target.dependency.try { |dependency| io << " module=" << dependency.identity << '@' << dependency.version }
           value.args.each { |arg| emit_inline_value(io, arg, depth) }
         when IR::LIR::Binary
           io << " Binary " << value.operator

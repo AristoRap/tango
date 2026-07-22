@@ -52,7 +52,7 @@ describe Tango::Planning::Strategies::Calls do
     Tango::Planning::Strategies::Calls.run(program, facts, table)
 
     plan = table.calls[id].as(Tango::Planning::Plans::ExternalGo)
-    plan.callee.package_name.should eq("fmt")
+    plan.callee.package_identifier.should eq("fmt")
     plan.callee.name.should eq("Println")
   end
 

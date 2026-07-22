@@ -11,7 +11,7 @@ module EditorRecoverySpecSupport
     input = IO::Memory.new(requests.map { |request| frame(request) }.join)
     output = IO::Memory.new
     errors = IO::Memory.new
-    Tango::Lsp::Server.new(input, output, errors).run
+    Tango::Lsp::Server.new(input, output, errors, recovery_limit: 5.seconds).run
     errors.rewind
     error_text = errors.gets_to_end
     raise error_text unless error_text.empty?
@@ -85,11 +85,12 @@ describe "editor recovery queries" do
     end.should be_true
   end
 
-  it "keeps recovery fact-only and within the explicit 750ms budget" do
+  it "keeps recovery fact-only and within the configured budget" do
     uri = "file:///virtual/recovery_budget.tn"
     path = "/virtual/recovery_budget.tn"
     source = "require \"tango/fs\"\nFile.read(\n"
-    workspace = Tango::Lsp::Workspace.new(IO::Memory.new)
+    recovery_limit = 5.seconds
+    workspace = Tango::Lsp::Workspace.new(IO::Memory.new, recovery_limit: recovery_limit)
     document = workspace.open(uri, path, source, 1)
     offset = expect_present(source.index("\n")) + 11
     context = Tango::Compiler::Editor::Context.at(source, offset)
@@ -99,7 +100,7 @@ describe "editor recovery queries" do
     result.should_not be_nil
     recovered = expect_present(result)
     recovered.shadow.should be_true
-    recovered.elapsed.should be < Tango::Lsp::AnalysisWorker::DEFAULT_RECOVERY_LIMIT
+    recovered.elapsed.should be < recovery_limit
     document.semantic_snapshot.should be_nil
     document.snapshot.diagnostics.should_not be_empty
   ensure

@@ -4,12 +4,13 @@ module Tango
       module Runtime
         class Import < Requirement
           getter path : String
+          getter identifier : String?
 
-          def initialize(@path : String)
+          def initialize(@path : String, @identifier : String? = nil)
           end
 
           def key : String
-            "import:#{path}"
+            "import:#{path}:#{identifier}"
           end
         end
       end

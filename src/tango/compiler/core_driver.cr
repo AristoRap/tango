@@ -87,7 +87,30 @@ module Tango
         end
 
         target_ir = Target::Go::FromLIR.translate(lir)
-        go_source = Target::Go::Source.emit(target_ir)
+        requirements = Target::Go::Runtime::Requirement.closure(target_ir.requirements)
+        go_modules = requirements.compact_map(&.as?(Target::Go::Runtime::ModuleRequirement))
+        begin
+          go_source = Target::Go::Source.emit(target_ir)
+        rescue ex : Target::Go::Source::ImportConflict
+          target_diagnostic = Diagnostic.new(
+            Diagnostic::Origin::Emit,
+            Diagnostic::Severity::Error,
+            Diagnostics::EMIT_UNSUPPORTED,
+            ex.message || "incompatible Go imports"
+          )
+          return Snapshot.new(
+            source: source,
+            nir: nir,
+            facts: facts,
+            plans: plans,
+            lir: lir,
+            target_ir: target_ir,
+            go_modules: go_modules,
+            diagnostics: diagnostics + [target_diagnostic],
+            editor_index: editor_index,
+            syntax_surface: syntax_surface
+          )
+        end
 
         Snapshot.new(
           source: source,
@@ -97,6 +120,7 @@ module Tango
           lir: lir,
           target_ir: target_ir,
           go_source: go_source,
+          go_modules: go_modules,
           diagnostics: diagnostics,
           editor_index: editor_index,
           syntax_surface: syntax_surface

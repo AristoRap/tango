@@ -2,12 +2,31 @@ module Tango
   module IR
     module LIR
       class ExternalTarget
-        getter language : String
-        getter package_name : String?
-        getter name : String
+        getter binding : IR::ExternalBinding
+        getter dependency : IR::ExternalDependency?
         getter? receiver_method : Bool
 
-        def initialize(@language : String, @package_name : String?, @name : String, @receiver_method : Bool = false)
+        def initialize(language : String, package_identifier : String?, name : String, @receiver_method : Bool = false, import_path : String? = nil, @dependency : IR::ExternalDependency? = nil)
+          @binding = IR::ExternalBinding.new(language, package_identifier, name, import_path: import_path)
+        end
+
+        def initialize(@binding : IR::ExternalBinding, @receiver_method : Bool = false, @dependency : IR::ExternalDependency? = nil)
+        end
+
+        def language : String
+          binding.language
+        end
+
+        def import_path : String?
+          binding.import_path
+        end
+
+        def package_identifier : String?
+          binding.package_identifier
+        end
+
+        def name : String
+          binding.name || ""
         end
       end
 

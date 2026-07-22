@@ -20,7 +20,8 @@ describe Tango::Analysis::Passes::Annotations do
     Tango::Analysis::Passes::Annotations.run(program, table)
 
     callee = table.go_externals[id].first
-    callee.package_name.should eq("fmt")
+    callee.import_path.should eq("fmt")
+    callee.package_identifier.should eq("fmt")
     callee.name.should eq("Println")
   end
 
@@ -41,9 +42,38 @@ describe Tango::Analysis::Passes::Annotations do
     type_binding = table.external_types[mutex].binding
     call_binding.should be_a(Tango::IR::ExternalBinding)
     type_binding.should be_a(Tango::IR::ExternalBinding)
-    call_binding.package_name.should eq("sync")
-    type_binding.package_name.should eq("sync")
+    call_binding.import_path.should eq("sync")
+    call_binding.package_identifier.should eq("sync")
+    type_binding.import_path.should eq("sync")
+    type_binding.package_identifier.should eq("sync")
     type_binding.name.should eq("Mutex")
+  end
+
+  it "records structured package and module metadata without splitting the import path" do
+    id = Tango::NodeId.new("call")
+    go = Tango::IR::NIR::TargetAnnotation.new(
+      ["Go"],
+      ["example.com/tango-fixtures/greeting/v2", "salute", "Greeting"],
+      [] of String
+    )
+    dependency = Tango::IR::NIR::TargetAnnotation.new(
+      ["GoModule"],
+      ["example.com/tango-fixtures/greeting/v2", "v2.0.0", "spec/fixtures/go_interop/greeting"],
+      [] of String
+    )
+    program = Tango::IR::NIR::Program.new([call_with_annotations(id, [go, dependency])] of Tango::IR::NIR::Stmt)
+
+    table = Tango::Analysis::Facts::Table.new
+    Tango::Analysis::Passes::Annotations.run(program, table)
+
+    callee = table.go_externals[id].first
+    callee.import_path.should eq("example.com/tango-fixtures/greeting/v2")
+    callee.package_identifier.should eq("salute")
+    callee.name.should eq("Greeting")
+    module_requirement = expect_present(callee.dependency)
+    module_requirement.identity.should eq("example.com/tango-fixtures/greeting/v2")
+    module_requirement.version.should eq("v2.0.0")
+    module_requirement.local_path.should eq("spec/fixtures/go_interop/greeting")
   end
 
   it "leaves the table untouched when there are no annotations" do

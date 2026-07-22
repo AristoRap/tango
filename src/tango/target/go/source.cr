@@ -2,6 +2,15 @@ module Tango
   module Target
     module Go
       module Source
+        class ImportConflict < Exception
+          getter path : String
+          getter identifiers : Array(String?)
+
+          def initialize(@path : String, @identifiers : Array(String?))
+            super("Go import #{path.inspect} requested with incompatible identifiers: #{identifiers.map(&.inspect).join(", ")}")
+          end
+        end
+
         def self.emit(file : IR::File) : String
           requirements = Runtime::Requirement.closure(file.requirements)
 
@@ -30,7 +39,15 @@ module Tango
         end
 
         private def self.runtime_imports(requirements : Array(Runtime::Requirement)) : Array(Runtime::Import)
-          requirements.compact_map(&.as?(Runtime::Import))
+          imports = requirements.compact_map(&.as?(Runtime::Import))
+          imports.group_by(&.path).each do |path, entries|
+            default_identifier = path.split('/').last
+            identifiers = entries.map do |entry|
+              entry.identifier == default_identifier ? nil : entry.identifier
+            end.uniq
+            raise ImportConflict.new(path, identifiers) if identifiers.size > 1
+          end
+          imports.uniq(&.path)
         end
 
         private def self.runtime_helpers(requirements : Array(Runtime::Requirement)) : Array(Runtime::Helper)
@@ -39,7 +56,11 @@ module Tango
 
         private def self.emit_imports(io : IO, imports : Array(Runtime::Import))
           imports.each do |import|
-            io << "import " << import.path.inspect << "\n"
+            io << "import "
+            import.identifier.try do |identifier|
+              io << identifier << ' ' unless identifier == import.path.split('/').last
+            end
+            io << import.path.inspect << "\n"
           end
 
           io << "\n" unless imports.empty?

@@ -1,5 +1,6 @@
 require "./runtime/requirement"
 require "./runtime/import"
+require "./runtime/module_requirement"
 require "./runtime/snippet"
 require "./runtime/helper"
 require "./runtime/registry_integer_systems"

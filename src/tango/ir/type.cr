@@ -337,22 +337,37 @@ module Tango
     end
 
     # The shared qualified identity behind external callable and type bindings.
-    # Callable-specific receiver dispatch and type-specific representation stay
-    # on their respective owners; language/package/name parsing happens once.
+    # Import path and package identifier are separate: `example.com/tool/v2`
+    # may declare `package tool`, and only the latter can appear in a selector.
+    # Callable receiver dispatch and type representation stay on their owners.
     class ExternalBinding
       getter language : String
-      getter package_name : String?
+      getter import_path : String?
+      getter package_identifier : String?
       getter name : String?
 
-      def initialize(@language : String, @package_name : String? = nil, @name : String? = nil)
+      def initialize(@language : String, @package_identifier : String? = nil, @name : String? = nil, import_path : String? = nil)
+        @import_path = import_path || @package_identifier
       end
 
       def self.qualified(language : String, value : String) : self
-        package_name, separator, name = value.rpartition('.')
-        package_name = nil if separator.empty?
-        new(language, package_name, name)
+        package_identifier, separator, name = value.rpartition('.')
+        package_identifier = nil if separator.empty?
+        new(language, package_identifier, name)
+      end
+
+      def self.package(language : String, import_path : String, package_identifier : String, name : String) : self
+        new(language, package_identifier, name, import_path: import_path)
       end
     end
+
+    # Versioned build input attached to an external declaration. The language
+    # selects how it is rendered at its toolchain boundary; neutral phases only
+    # retain its identity and optional local replacement.
+    record ExternalDependency,
+      identity : String,
+      version : String,
+      local_path : String? = nil
 
     # A source-declared binding from a Tango type to an external target type.
     # The shape is typed so no phase parses a target string to rediscover

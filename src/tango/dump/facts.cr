@@ -44,7 +44,8 @@ module Tango
           end
           facts.external_types.each do |type, binding|
             io << type << " external_type " << binding.binding.language << " " << binding.shape
-            binding.binding.package_name.try { |package_name| io << " package=" << package_name }
+            binding.binding.import_path.try { |import_path| io << " import=" << import_path }
+            binding.binding.package_identifier.try { |package_identifier| io << " package=" << package_identifier }
             binding.binding.name.try { |name| io << " name=" << name }
             io << '\n'
           end
@@ -69,6 +70,13 @@ module Tango
           facts.go_externals.each do |id, callees|
             callees.each do |callee|
               io << id << " go_external " << callee
+              callee.import_path.try { |import_path| io << " import=" << import_path }
+              callee.package_identifier.try { |package_identifier| io << " package=" << package_identifier }
+              io << " symbol=" << callee.name
+              callee.dependency.try do |dependency|
+                io << " module=" << dependency.identity << '@' << dependency.version
+                dependency.local_path.try { |path| io << " replace=" << path }
+              end
               SourceLocations.append(io, locations[id]?)
               io << '\n'
             end

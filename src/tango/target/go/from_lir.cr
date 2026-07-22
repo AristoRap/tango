@@ -425,9 +425,14 @@ module Tango
         private def external_callee(target : Tango::IR::LIR::ExternalTarget, requirements : Array(Runtime::Requirement)) : IR::Expr
           return IR::Ident.new("panic") unless target.language == "go"
 
-          if package_name = target.package_name
-            requirements << Runtime::Import.new(package_name)
-            IR::Selector.new(IR::Ident.new(package_name), target.name)
+          target.dependency.try do |dependency|
+            requirements << Runtime::ModuleRequirement.new(dependency.identity, dependency.version, dependency.local_path)
+          end
+
+          if package_identifier = target.package_identifier
+            import_path = target.import_path || package_identifier
+            requirements << Runtime::Import.new(import_path, package_identifier)
+            IR::Selector.new(IR::Ident.new(package_identifier), target.name)
           else
             # A dotless @[Go] binding names a runtime helper snippet, not a
             # package function.

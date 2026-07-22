@@ -1,0 +1,7 @@
+module Greeting
+  @[Primitive(:tango_external)]
+  @[Go("example.com/tango-fixtures/greeting/v2", "salute", "Greeting")]
+  @[GoModule("example.com/tango-fixtures/greeting/v2", "v2.0.0", "spec/fixtures/go_interop/greeting")]
+  def self.call(name : String) : String
+  end
+end

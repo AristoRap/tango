@@ -16,11 +16,12 @@ describe "golden examples" do
     it "runs examples/#{name}.tn and matches spec/golden/#{name}.stdout" do
       File.exists?(golden_path).should be_true
 
-      go_source = Tango.compile(File.read(source_path), filename: source_path)
+      snapshot = Tango.snapshot(File.read(source_path), filename: source_path)
+      go_source = expect_present(snapshot.go_source)
 
       output = IO::Memory.new
       error = IO::Memory.new
-      result = Tango::Toolchain::Go.run_source(go_source, source_path, output, error)
+      result = Tango::Toolchain::Go.run_source(go_source, source_path, output, error, modules: snapshot.go_modules)
 
       error.to_s.should be_empty
       result.status.should eq(0)

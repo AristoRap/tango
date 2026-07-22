@@ -209,9 +209,10 @@ module Tango
           private def qualified_name(binding : Tango::IR::ExternalType) : String
             external = binding.binding
             name = external.name || raise "external named type #{binding.type} has no name"
-            external.package_name.try do |package_name|
-              @requirements << Runtime::Import.new(package_name)
-              return "#{package_name}.#{name}"
+            external.package_identifier.try do |package_identifier|
+              import_path = external.import_path || package_identifier
+              @requirements << Runtime::Import.new(import_path, package_identifier)
+              return "#{package_identifier}.#{name}"
             end
             name
           end

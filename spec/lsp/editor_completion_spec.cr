@@ -11,7 +11,7 @@ module EditorCompletionSpecSupport
     input = IO::Memory.new(requests.map { |request| frame(request) }.join)
     output = IO::Memory.new
     errors = IO::Memory.new
-    Tango::Lsp::Server.new(input, output, errors).run
+    Tango::Lsp::Server.new(input, output, errors, recovery_limit: 5.seconds).run
     errors.rewind
     error_text = errors.gets_to_end
     raise error_text unless error_text.empty?

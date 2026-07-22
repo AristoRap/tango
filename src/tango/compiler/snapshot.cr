@@ -8,6 +8,7 @@ module Tango
       getter lir : IR::LIR::Program?
       getter target_ir : Target::Go::IR::File?
       getter go_source : String?
+      getter go_modules : Array(Target::Go::Runtime::ModuleRequirement)
       getter diagnostics : Array(Diagnostic)
       getter editor_index : Editor::Index
       getter syntax_surface : Frontend::SyntaxSurface::Index
@@ -21,6 +22,7 @@ module Tango
         @lir : IR::LIR::Program? = nil,
         @target_ir : Target::Go::IR::File? = nil,
         @go_source : String? = nil,
+        @go_modules : Array(Target::Go::Runtime::ModuleRequirement) = [] of Target::Go::Runtime::ModuleRequirement,
         @diagnostics : Array(Diagnostic) = [] of Diagnostic,
         @editor_index : Editor::Index = Editor::Index.new,
         @syntax_surface : Frontend::SyntaxSurface::Index = Frontend::SyntaxSurface::Index.new,

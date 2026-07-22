@@ -24,6 +24,11 @@ module Tango
         end
       end
 
+      private class ModuleConflict < Exception
+      end
+
+      private record ModuleEntry, path : String, version : String, replacement : String?
+
       private enum Action
         Run
         Build
@@ -33,27 +38,42 @@ module Tango
         action : Action,
         output_path : String? = nil,
         race : Bool = false do
-        def args(main_path : String) : Array(String)
+        def args(main_path : String, module_mode : Bool) : Array(String)
           case action
           in Action::Run
-            args = ["run"]
-            args << "-race" if race
-            args << main_path
+            if module_mode
+              args = ["build"]
+              args << "-race" if race
+              path = run_path(main_path)
+              raise "module run requires an output path" unless path
+              args.concat(["-o", path, File.basename(main_path)])
+            else
+              args = ["run"]
+              args << "-race" if race
+              args << main_path
+            end
           in Action::Build
             destination = output_path || raise "build execution requires an output path"
             args = ["build"]
             args << "-race" if race
-            args.concat(["-o", destination, main_path])
+            output = module_mode ? File.expand_path(destination) : destination
+            args.concat(["-o", output, module_mode ? File.basename(main_path) : main_path])
           end
 
           args
+        end
+
+        def run_path(main_path : String) : String?
+          action.run? ? File.expand_path(File.join(File.dirname(main_path), "program")) : nil
         end
       end
 
       private record PreparedExecution,
         toolchain : Resolution,
         args : Array(String),
-        env : Hash(String, String)
+        env : Hash(String, String),
+        working_dir : String? = nil,
+        run_path : String? = nil
 
       record BrokenPin, path : String do
         def message : String
@@ -124,20 +144,26 @@ module Tango
         end
       end
 
-      def self.run_source(source : String, source_path : String, output : IO, runtime_error : IO, race : Bool = false) : Result
-        execute_source(source, source_path, Execution.new(Action::Run, race: race), output, runtime_error)
+      def self.run_source(source : String, source_path : String, output : IO, runtime_error : IO, race : Bool = false, modules : Array(Target::Go::Runtime::ModuleRequirement) = [] of Target::Go::Runtime::ModuleRequirement) : Result
+        execute_source(source, source_path, Execution.new(Action::Run, race: race), output, runtime_error, modules)
       end
 
-      def self.build_source(source : String, source_path : String, output_path : String, build_error : IO, race : Bool = false) : Result
-        execute_source(source, source_path, Execution.new(Action::Build, output_path, race), Process::Redirect::Close, build_error)
+      def self.build_source(source : String, source_path : String, output_path : String, build_error : IO, race : Bool = false, modules : Array(Target::Go::Runtime::ModuleRequirement) = [] of Target::Go::Runtime::ModuleRequirement) : Result
+        execute_source(source, source_path, Execution.new(Action::Build, output_path, race), Process::Redirect::Close, build_error, modules)
       end
 
-      private def self.execute_source(source : String, source_path : String, execution : Execution, output : Process::Stdio, error : Process::Stdio) : Result
-        case prepared = prepare_execution(source, source_path, execution)
+      private def self.execute_source(source : String, source_path : String, execution : Execution, output : Process::Stdio, error : Process::Stdio, modules : Array(Target::Go::Runtime::ModuleRequirement)) : Result
+        case prepared = prepare_execution(source, source_path, execution, modules)
         in PreparedExecution
           begin
-            status = Process.run(prepared.toolchain.path, prepared.args, output: output, error: error, env: prepared.env)
-            Result.new(status.exit_code)
+            compile_output = prepared.run_path ? Process::Redirect::Close : output
+            status = Process.run(prepared.toolchain.path, prepared.args, output: compile_output, error: error, env: prepared.env, chdir: prepared.working_dir)
+            return Result.new(status.exit_code) unless status.success? && prepared.run_path
+
+            run_path = prepared.run_path
+            raise "successful module run has no executable" unless run_path
+            run_status = Process.run(run_path, output: output, error: error, env: prepared.env)
+            Result.new(run_status.exit_code)
           rescue ex : File::Error
             Result.new(1, [check(Diagnostics::CHECK_GO, "couldn't execute Go toolchain: #{ex.message}")])
           end
@@ -146,20 +172,27 @@ module Tango
         end
       end
 
-      private def self.prepare_execution(source : String, source_path : String, execution : Execution) : PreparedExecution | Array(Diagnostic)
+      private def self.prepare_execution(source : String, source_path : String, execution : Execution, modules : Array(Target::Go::Runtime::ModuleRequirement)) : PreparedExecution | Array(Diagnostic)
         case toolchain = checked_toolchain
         in Diagnostic
           return [toolchain]
         in Resolution
-          main_path = write_main(source, source_path, toolchain.formatter_path)
+          main_path = write_main(source, source_path, toolchain.formatter_path, modules)
           return main_path.diagnostics unless main_path.success?
           path = main_path.source
           return main_path.diagnostics unless path
 
-          diagnostics = vet(toolchain.path, path)
+          module_mode = !modules.empty?
+          diagnostics = vet(toolchain.path, path, module_mode)
           return diagnostics unless diagnostics.empty?
 
-          PreparedExecution.new(toolchain, execution.args(path), env(execution.race))
+          PreparedExecution.new(
+            toolchain,
+            execution.args(path, module_mode),
+            env(execution.race),
+            working_dir: module_mode ? File.dirname(path) : nil,
+            run_path: module_mode ? execution.run_path(path) : nil
+          )
         end
       end
 
@@ -184,7 +217,7 @@ module Tango
         end
       end
 
-      private def self.write_main(source : String, source_path : String, formatter_path : String) : FormattedSource
+      private def self.write_main(source : String, source_path : String, formatter_path : String, modules : Array(Target::Go::Runtime::ModuleRequirement)) : FormattedSource
         main_path = Workspace::Layout.execution_module_file(source_path)
         formatted = format_source(formatter_path, source)
         return formatted unless formatted.success?
@@ -193,8 +226,9 @@ module Tango
 
         Dir.mkdir_p(File.dirname(main_path))
         File.write(main_path, rendered)
+        File.write(File.join(File.dirname(main_path), "go.mod"), render_module(modules)) unless modules.empty?
         FormattedSource.new(main_path)
-      rescue ex : File::Error
+      rescue ex : File::Error | ModuleConflict
         FormattedSource.new(nil, [check(Diagnostics::CHECK_WORKSPACE, "couldn't write generated Go source: #{ex.message}", file: main_path)])
       end
 
@@ -209,15 +243,48 @@ module Tango
         FormattedSource.new(nil, [check(Diagnostics::CHECK_GOFMT, "gofmt failed: #{ex.message}")])
       end
 
-      private def self.vet(go_path : String, main_path : String) : Array(Diagnostic)
+      private def self.vet(go_path : String, main_path : String, module_mode : Bool) : Array(Diagnostic)
         output = IO::Memory.new
         diagnostics = IO::Memory.new
-        status = Process.run(go_path, ["vet", main_path], output: output, error: diagnostics, env: env)
+        target = module_mode ? File.basename(main_path) : main_path
+        status = Process.run(go_path, ["vet", target], output: output, error: diagnostics, env: env, chdir: module_mode ? File.dirname(main_path) : nil)
         return [] of Diagnostic if status.success?
 
         tool_diagnostics(Diagnostics::CHECK_GO_VET, "go vet failed", "#{output}#{diagnostics}", main_path)
       rescue ex
         [check(Diagnostics::CHECK_GO_VET, "go vet failed: #{ex.message}", file: main_path)]
+      end
+
+      private def self.render_module(modules : Array(Target::Go::Runtime::ModuleRequirement)) : String
+        grouped = modules.group_by(&.path)
+        resolved = grouped.keys.sort.map do |path|
+          dependency = grouped[path].first
+          conflict = grouped[path].any? do |candidate|
+            candidate.version != dependency.version || candidate.local_path != dependency.local_path
+          end
+          raise ModuleConflict.new("Go module #{path.inspect} has incompatible requirements") if conflict
+          replacement = dependency.local_path.try { |local_path| File.expand_path(local_path) }
+          ModuleEntry.new(path, dependency.version, replacement)
+        end
+
+        String.build do |io|
+          io << "module tango.local/generated\n\ngo #{MIN_VERSION[0]}.#{MIN_VERSION[1]}\n"
+          unless resolved.empty?
+            io << "\nrequire (\n"
+            resolved.each { |entry| io << "\t" << entry.path << ' ' << entry.version << "\n" }
+            io << ")\n"
+          end
+          replacements = resolved.select { |entry| !entry.replacement.nil? }
+          unless replacements.empty?
+            io << "\nreplace (\n"
+            replacements.each do |entry|
+              replacement = entry.replacement
+              raise ModuleConflict.new("Go module #{entry.path.inspect} has no local replacement") unless replacement
+              io << "\t" << entry.path << " => " << replacement << "\n"
+            end
+            io << ")\n"
+          end
+        end
       end
 
       private def self.tool_diagnostics(code : String, fallback : String, output : String, file : String) : Array(Diagnostic)

@@ -202,4 +202,27 @@ describe Tango::Toolchain::Go do
       result.diagnostics.first.message.should contain("couldn't execute Go toolchain")
     end
   end
+
+  it "returns a workspace check for incompatible module requirements" do
+    fake_toolchain("module-conflict", version_script("exit 98"), "#!/bin/sh\ncat\n") do
+      modules = [
+        Tango::Target::Go::Runtime::ModuleRequirement.new("example.com/tool/v2", "v2.0.0"),
+        Tango::Target::Go::Runtime::ModuleRequirement.new("example.com/tool/v2", "v2.1.0"),
+      ]
+
+      result = Tango::Toolchain::Go.run_source(
+        "package main\nfunc main() {}\n",
+        "module_conflict.tn",
+        IO::Memory.new,
+        IO::Memory.new,
+        modules: modules
+      )
+
+      result.status.should eq(1)
+      result.diagnostics.size.should eq(1)
+      result.diagnostics.first.code.should eq(Tango::Diagnostics::CHECK_WORKSPACE)
+      result.diagnostics.first.message.should contain("couldn't write generated Go source")
+      result.diagnostics.first.message.should contain("incompatible requirements")
+    end
+  end
 end

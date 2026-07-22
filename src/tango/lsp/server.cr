@@ -45,11 +45,16 @@ module Tango
         line : Int32,
         column : Int32
 
-      def initialize(@input : IO = STDIN, @output : IO = STDOUT, @log : IO = STDERR)
+      def initialize(
+        @input : IO = STDIN,
+        @output : IO = STDOUT,
+        @log : IO = STDERR,
+        recovery_limit : Time::Span = AnalysisWorker::DEFAULT_RECOVERY_LIMIT,
+      )
         @position_encoding = Position::Encoding::UTF16
         @shutdown = false
         @published_diagnostic_uris = Set(String).new
-        @workspace = Workspace.new(@log, on_analysis: -> { publish_diagnostics })
+        @workspace = Workspace.new(@log, recovery_limit: recovery_limit, on_analysis: -> { publish_diagnostics })
       end
 
       def run : Nil

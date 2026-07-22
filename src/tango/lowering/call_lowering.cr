@@ -27,7 +27,11 @@ module Tango
       end
 
       private def lower_external_target(callee : Analysis::Facts::GoExternal) : IR::LIR::ExternalTarget
-        IR::LIR::ExternalTarget.new("go", callee.package_name, callee.name, callee.receiver_method?)
+        IR::LIR::ExternalTarget.new(
+          callee.binding,
+          callee.receiver_method?,
+          dependency: callee.dependency
+        )
       end
 
       private def normalize_operator(name : String) : String
